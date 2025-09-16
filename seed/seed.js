@@ -21,6 +21,8 @@ const masterSrcDir     = path.resolve(__dirname, '../map/master_source');
 const masterIdxDir     = path.resolve(__dirname, '../map/master_index');
 const rejectedItemsDir = path.resolve(__dirname, '../map/rejectedParcels');
 const historyDir       = path.resolve(__dirname, '../map/history');
+// const assetsDir        = path.resolve(__dirname, "../src/assets/map");
+
 const dataFiles = [
 	'altadena_1.json', 
 	'altadena_2.json', 
@@ -77,8 +79,8 @@ function setUnitInfo(p) {
     return units.length > 0 ? units : null;
 }
 
-
-export async function initializeMapData(assetsDir) {
+initializeMapData()
+export async function initializeMapData(assetsDir = "../src/assets/map") {
 	try {
 		// PARSE, FLATTEN JSON DATA 
 		const originalGeojsonDataArrays = await Promise.all(
@@ -241,9 +243,9 @@ export async function initializeMapData(assetsDir) {
 		
 
 		// SET MASTER INDEX LAYERS (x3)
-        NEW_MASTER_INDEX.baseLayers   = BASE_SOURCE_LAYERS;
-        NEW_MASTER_INDEX.masterLayers = MASTER_SOURCE_LAYERS;
-        NEW_MASTER_INDEX.buildLayers  = BUILD_NOTE_LAYERS;
+        MASTER_INDEX.baseLayers   = BASE_SOURCE_LAYERS;
+        MASTER_INDEX.masterLayers = MASTER_SOURCE_LAYERS;
+        MASTER_INDEX.buildLayers  = BUILD_NOTE_LAYERS;
 
 		// WRITE FILES AND BACKUP FILES
 		await writeAssetAndBackup(BASE_SOURCE_COLLECTION,   assetsDir,        'base-source.json');
