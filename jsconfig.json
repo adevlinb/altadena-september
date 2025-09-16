@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "module": "ESNext",                // modern module system (better for Vite than CommonJS)
+    "target": "ES6",                   // compile target
+    "jsx": "react-jsx",                // enable React JSX IntelliSense
+    "moduleResolution": "bundler",     // good for Vite/ESM projects
+    "baseUrl": ".",                    // allow path aliases if you want to add them later
+    "paths": {}                        // placeholder, safe to leave empty until you need aliases
+  },
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
+}
