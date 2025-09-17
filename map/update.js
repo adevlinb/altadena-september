@@ -58,6 +58,9 @@ export default async function updateMap(req, res) {
     // BUILD NOTE LAYERS
     const NEW_BUILD_NOTE_LAYERS = FeatureCollection.getBuildNoteLayers();
 
+    // ROLODEX OF PARTNERS
+    const ROLODEX = {}
+
     // HISTORY ENTRY:
     const historyEntry = new History(CURR_MASTER_INDEX.id, CURR_BASE_SOURCE.id, CURR_MASTER_SOURCE.id)
 
@@ -123,7 +126,7 @@ export default async function updateMap(req, res) {
             CURR_MASTER_INDEX.features[key].properties = mergedProps;
         }
 
-        // 3.0 GENERATE NEW SOURCE FEATURES / MASTER INDEX FEATURES and LAYER VALUES
+        // 3.0 GENERATE NEW SOURCE FEATURES, LAYER VALUES, ROLODEX OF PARTNERS
         for (const [key, parcel] of Object.entries(CURR_MASTER_INDEX.features)) {
 
             // 3.1 GENERATE BASE COLLECTION FEATURES
@@ -189,9 +192,36 @@ export default async function updateMap(req, res) {
                 }
             }
 
+            // 3.3 GENERATE ROLODEX
+            // List of roles and their respective columns in the parcel
+            const categories = ["architect", "engineer", "builder"];
 
+            categories.forEach(role => {
+                const rawName = parcel[role];
+                if (!rawName) return;
+                const name = normalizeName(rawName);
+                if (!name) return;
 
-            // 3.3 GENERATE MASTER INDEX && FEATURES
+                // Initialize the contributor in the rolodex if not seen before
+                if (!ROLODEX[name]) {
+                    ROLODEX[name] = {
+                    phone:   parcel[`${role}PhoneNumber`] || null,
+                    email:   parcel[`${role}Email`]       || null,
+                    website: parcel[`${role}Website`]     || null,
+                    roles: [role], // list of roles they serve
+                    };
+                } else {
+                    const partner = ROLODEX[name];
+
+                    // Update missing contact info, add role if not present
+                    if (!partner.phone && parcel[`${role}PhoneNumber`]) partner.phone   = parcel[`${role}PhoneNumber`];
+                    if (!partner.email && parcel[`${role}Email`])       partner.email   = parcel[`${role}Email`];
+                    if (!partner.website && parcel[`${role}Website`])   partner.website = parcel[`${role}Website`];
+                    if (!partner.roles.includes(role)) partner.roles.push(role);
+                }
+            });
+
+            // 3.4 GENERATE MASTER INDEX && FEATURES
             const newIndexFeature = new MasterIndexFeature(parcel)
             NEW_MASTER_INDEX.features[parcel.parcelNum] = newIndexFeature;
             NEW_MASTER_INDEX.length += 1;
@@ -274,10 +304,12 @@ export default async function updateMap(req, res) {
             layer.formulas = Layer.buildLayerFormulas(layer);
         }
 
-        // ASSIGN NEW MASTER BUILD NOTE LAYERS
+        // ASSIGN NEW MASTER BUILD NOTE LAYERS and ROLODEX
         NEW_MASTER_SOURCE_COLLECTION.buildLayers = NEW_BUILD_NOTE_LAYERS;
+        NEW_MASTER_SOURCE_COLLECTION.rolodex     = ROLODEX;
 
-        // SET MASTER INDEX LAYERS (x3)
+        // SET MASTER INDEX LAYERS (x3) and ROLODEX
+        NEW_MASTER_INDEX.rolodex      = ROLODEX;
         NEW_MASTER_INDEX.baseLayers   = NEW_BASE_SOURCE_LAYERS;
         NEW_MASTER_INDEX.masterLayers = NEW_MASTER_SOURCE_LAYERS;
         NEW_MASTER_INDEX.buildLayers  = NEW_BUILD_NOTE_LAYERS;
@@ -300,9 +332,9 @@ export default async function updateMap(req, res) {
         console.warn("Error during updateIndexAndAssets:", err);
 
         const requiredFiles = [
-            { name: 'master-index.json',  paths: [masterIdxProdDir, masterIdxBackupDir] },
-            { name: 'master-source.json', paths: [mapSourceProdDir, masterSrcBackupDir] },
-            { name: 'base-source.json',   paths: [mapSourceProdDir, baseSrcBackupDir]   },
+            { name: 'master-index.json',  paths: [masterIdxBackupDir, masterIdxBackupDir] },
+            { name: 'master-source.json', paths: [mapSourceProdDir,   masterSrcBackupDir] },
+            { name: 'base-source.json',   paths: [mapSourceProdDir,   baseSrcBackupDir]   },
         ];
 
         const missingFileRecords = [];
@@ -434,5 +466,17 @@ function mergeParcelProperties(oldProps = {}, newProps = {}) {
 }
 
 function isValidValue(val) {
-  return val !== undefined && val !== null && val !== '' && val !== false;
+    return val !== undefined && val !== null && val !== '' && val !== false;
 }
+
+function normalizeName(name) {
+    if (!name) return null;
+    return name
+        .toLowerCase()
+        .trim()
+        .replace(/\s+/g, " ") // collapse multiple spaces
+        .replace(/\b\w/g, char => char.toUpperCase()); // capitalize first letter of each word
+}
+
+
+

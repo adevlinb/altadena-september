@@ -200,13 +200,14 @@ export class Layer {
 }
 
 export class FeatureCollection {
-    constructor(name, features = [], layers = [], buildLayers = []) {
+    constructor(name, features = [], layers = [], buildLayers = [], rolodex = {}) {
         this.type        = "FeatureCollection";
 		this.id          = `${name}-${new Date().toISOString()}`; // "base-source" or "master-source" w/ date of creation
         this.name        = name        // "base-source" or "master-source" => for layers to point to
         this.features    = features;   // PROPERTIES / PARCELS
         this.layers      = layers;     // Contains all data layers / properties being rendered w/ layer formulas
         this.buildLayers = buildLayers // Contains all BuildNote layers / properties being rendered w/ layer formulas
+        this.rolodex     = rolodex;   // Rolodex of Contractors signed onto projects listed in google sheets
     }
 
     // ** UPDATE LAYERS HERE FOR PUBLIC FACING LAYERS     ** //
@@ -357,7 +358,7 @@ export class MasterIndexFeature {
 }
 
 export class MasterIndex {
-    constructor(name, length = 0, features = {}, baseLayers = [], masterLayers = [], buildLayers = []) {
+    constructor(name, length = 0, features = {}, baseLayers = [], masterLayers = [], buildLayers = [], rolodex = {}) {
         this.type         = "MasterIndex"
         this.name         = name;
         this.id           = `${name}-${new Date().toISOString()}`;
@@ -366,6 +367,7 @@ export class MasterIndex {
         this.baseLayers   = baseLayers;
         this.masterLayers = masterLayers;
         this.buildLayers  = buildLayers;
+        this.rolodex      = rolodex;
     }
 }
 

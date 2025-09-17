@@ -22,10 +22,12 @@ const PROPERTY_SOURCE = { type: "FeatureCollection", name: "property-source", id
 export default function App({ user = {} }) {
 	const mapRef = useRef(null)
 	const mapContainerRef = useRef(null)
-	const [propertyDetail,  setPropertyDetail] = useState(null);
-	const [mapLayers,       setMapLayers     ] = useDeepState([]);
-	const [showMapLayers,   setShowMapLayers ] = useState(false);
-	const [showPropDetail,  setShowPropDetail] = useState(false);
+	const [propertyDetail,  setPropertyDetail ] = useState(null);
+	const [mapLayers,       setMapLayers      ] = useDeepState([]);
+	const [showMapLayers,   setShowMapLayers  ] = useState(false);
+	const [showPropDetail,  setShowPropDetail ] = useState(false);
+	const [showBuildLayers, setShowBuildLayers] = useState(false);
+	const buildLayers = MASTER_SOURCE.buildLayers.map(layer => layer.name);
 
 	useEffect(() => {
 		// CREATE NEW MAP
@@ -87,27 +89,35 @@ export default function App({ user = {} }) {
 				</div>
 				<div className="mapkey-container">
 					<div className="main-label">
-						<h1>Map Key:</h1>
+						<h1>Map Layers:</h1>
 						<div onClick={() => setShowMapLayers(!showMapLayers)}>{ showMapLayers ? "❌" : "✅" }</div>
 					</div>
 					<div style={{ display: showMapLayers && mapLayers.length > 0 ? "block" : "none" }}>
-						{ mapLayers.map(l => (<Layer key={l.key} layer={l} updateMapLayers={updateMapLayers} property={false} />)) }
+						{ mapLayers.map(l => (<Layer key={l.key} layer={l} updateMapLayers={updateMapLayers} property={false} buildNote={false} />)) }
 					</div>
 				</div>
 				<div className="property-container">
 					<div className="main-label">
-						<h1>Property:</h1>
+						<h1>Property Detail:</h1>
 						{ propertyDetail 
 							? <div onClick={() => setShowPropDetail(!showPropDetail)}>{ showPropDetail ? "❌" : "✅" }</div>
 							: <div>🚫</div>
 						}
 					</div>
 					<div style={{ display: propertyDetail && showPropDetail ? "block" : "none" }}>
-						{ mapLayers.map(l => (<Layer key={l.key} layer={l} updateMapLayers={updateMapLayers} property={true} />)) }
+						{ mapLayers.map(l => (<Layer key={l.key} layer={l} updateMapLayers={updateMapLayers} property={true} buildNote={false} />)) }
 						<PropertyDetail propertyDetail={propertyDetail} />
 					</div>
 				</div>
-				
+				<div className="mapkey-container">
+					<div className="main-label">
+						<h1>Build Notes:</h1>
+						<div onClick={() => setShowBuildLayers(!showBuildLayers)}>{ showBuildLayers ? "❌" : "✅" }</div>
+					</div>
+					<div style={{ display: showBuildLayers && mapLayers.length > 0 ? "block" : "none" }}>
+						{ mapLayers.map(l => (<Layer key={l.key} layer={l} updateMapLayers={updateMapLayers} property={false} buildNote={true} buildLayers={buildLayers} />)) }
+					</div>
+				</div>
 			</div>
 		</div>
 		</main>

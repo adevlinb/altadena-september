@@ -1,10 +1,10 @@
 import { useState, memo } from "react";
 import Sublayer from "./Sublayer"
 
-const Layer = ({ layer, updateMapLayers, property }) => {
+const Layer = ({ layer, updateMapLayers, property, buildNote, buildLayers }) => {
     const [showLayerInfo, setShowLayerInfo] = useState(false)
-
-    if (layer.formulas.length === 0 || layer.name.includes("(nc)")) return null;
+    if (buildNote && !buildLayers.includes(layer.name)) return null
+    if (layer.formulas.length === 0) return null;
     if (layer.src !== "property-source" && property) return null;
     if (layer.src === "property-source" && !property) return null;
 
