@@ -21,7 +21,7 @@ const masterSrcDir     = path.resolve(__dirname, '../map/master_source');
 const masterIdxDir     = path.resolve(__dirname, '../map/master_index');
 const rejectedItemsDir = path.resolve(__dirname, '../map/rejectedParcels');
 const historyDir       = path.resolve(__dirname, '../map/history');
-// const assetsDir        = path.resolve(__dirname, "../src/assets/map");
+// const assetsDir        = path.resolve(__dirname, "../public/map");
 
 const dataFiles = [
 	'altadena_1.json', 
@@ -80,7 +80,7 @@ function setUnitInfo(p) {
 }
 
 initializeMapData()
-export async function initializeMapData(assetsDir = "../src/assets/map") {
+export async function initializeMapData(assetsDir = "../public/map") {
 	try {
 		// PARSE, FLATTEN JSON DATA 
 		const originalGeojsonDataArrays = await Promise.all(

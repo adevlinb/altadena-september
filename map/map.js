@@ -241,12 +241,13 @@ export class FeatureCollection {
     static getBuildNoteLayers() {
         return [
             // MAKE SURE THE SOURCE SAYS "master-source"!
+            // WATCH FOR BIN VALUES PROP -> new Set() for type category, new Map() for type range
             { key: "archStyle",     name: "Architectural Style",  src: "master-source", dataType: "category", type: "fill", binValues: new Set(), binCount: {}, formulas: [], }, 
             { key: "bedCount",      name: "Bed Count",            src: "master-source", dataType: "category", type: "fill", binValues: new Set(), binCount: {}, formulas: [], }, 
             { key: "bathCount",     name: "Bath Count",           src: "master-source", dataType: "category", type: "fill", binValues: new Set(), binCount: {}, formulas: [], }, 
             { key: "garage",        name: "Garage",               src: "master-source", dataType: "category", type: "fill", binValues: new Set(), binCount: {}, formulas: [], }, 
             { key: "garageSize",    name: "Garage Size (sq ft)",  src: "master-source", dataType: "range"   , type: "fill", binValues: new Map(), binCount: {}, formulas: [], }, 
-            { key: "adu",           name: "Accessory Dwell Unit", src: "master-source", dataType: "category", type: "fill", binValues: new Map(), binCount: {}, formulas: [], }, 
+            { key: "adu",           name: "Accessory Dwell Unit", src: "master-source", dataType: "category", type: "fill", binValues: new Set(), binCount: {}, formulas: [], }, 
             { key: "totalSqFt",     name: "Total Sq Ft",          src: "master-source", dataType: "range"   , type: "fill", binValues: new Map(), binCount: {}, formulas: [], }, 
             { key: "constMethod",   name: "Construction Method",  src: "master-source", dataType: "category", type: "fill", binValues: new Set(), binCount: {}, formulas: [], }, 
             { key: "status",        name: "Status",               src: "master-source", dataType: "category", type: "fill", binValues: new Set(), binCount: {}, formulas: [], }, 

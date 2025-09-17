@@ -28,7 +28,7 @@ const masterIdxBackupDir = path.resolve(__dirname, "../map/master_index");
 const historyDir         = path.resolve(__dirname, "../map/history");
 
 // PRODUCTION DIRECTORIES (assets in react)
-const mapSourceProdDir   = path.resolve(__dirname, "../src/assets/map");
+const mapSourceProdDir   = path.resolve(__dirname, "../public/map");
 
 export default async function updateMap(req, res) {
 
@@ -43,17 +43,17 @@ export default async function updateMap(req, res) {
     // MASTER INDEX
     const CURR_MASTER_INDEX = await loadAndBackupJson(masterIdxBackupDir, 'master-index.json');
     const NEW_MASTER_INDEX  = new MasterIndex('master-index');
-
+    
     // BASE SOURCE
     const CURR_BASE_SOURCE = await loadAndBackupJson(baseSrcBackupDir, 'base-source.json');
     const NEW_BASE_SOURCE_COLLECTION = new FeatureCollection('base-source');
     const NEW_BASE_SOURCE_LAYERS = FeatureCollection.getBaseLayers();
-
+    
     // MASTER SOURCE
     const CURR_MASTER_SOURCE = await loadAndBackupJson(masterSrcBackupDir, 'master-source.json');
     const NEW_MASTER_SOURCE_COLLECTION = new FeatureCollection('master-source');
     const NEW_MASTER_SOURCE_LAYERS = FeatureCollection.getMasterLayers();
-
+    
     // BUILD NOTE LAYERS
     const NEW_BUILD_NOTE_LAYERS = FeatureCollection.getBuildNoteLayers();
 
@@ -105,6 +105,7 @@ export default async function updateMap(req, res) {
             addedMasterFeatureProps.length ? new HistoryEntry({ name: 'Master Layer Properties', type: 'Master Layer Properties', action: 'added',   item: addedMasterFeatureProps }) : null,
         ].filter(Boolean));
 
+        
         // ** IF NO CHANGES -> DO NOTHING **
         if (historyEntry.rejectedProps.length      === 0 &&
             historyEntry.verifiedProps.length      === 0 &&
@@ -112,17 +113,27 @@ export default async function updateMap(req, res) {
             historyEntry.featurePropChanges.length === 0)
             return;
 
-
         // 2.0 => IMPLEMENT FEATURE UPDATES TO CURRENT MASTER INDEX
+        console.log(updates.length, "updates length")
+        console.log(updates.reduce((counts, obj) => {
+            const parcel = obj.parcelNum;
+            if (!parcel) return counts; // skip if no parcelNum
+
+            counts[parcel] = (counts[parcel] || 0) + 1;
+            return counts;
+        }, {}))
+        
         for (const update of updates) {
+            
             const key = update.parcelNum;
             const feature = CURR_MASTER_INDEX.features[key];
 
             if (!feature) continue;
 
-            const mergedProps = mergeParcelProperties(feature.properties, update);
+            const mergedProps = mergeParcelProperties(feature, update);
 
-            CURR_MASTER_INDEX.features[key].properties = mergedProps;
+            CURR_MASTER_INDEX.features[key] = mergedProps;
+            console.log(CURR_MASTER_INDEX.features[key])
         }
 
         // 3.0 GENERATE NEW SOURCE FEATURES, LAYER VALUES, ROLODEX OF PARTNERS
@@ -296,6 +307,7 @@ export default async function updateMap(req, res) {
             layer.formulas = Layer.buildLayerFormulas(layer);
         }
 
+        console.log("rolodex: ", ROLODEX)
         // 4.4 ASSIGN NEW LAYERS and ROLODEX
         NEW_BASE_SOURCE_COLLECTION.layers        = NEW_BASE_SOURCE_LAYERS;
         NEW_MASTER_SOURCE_COLLECTION.layers      = NEW_MASTER_SOURCE_LAYERS;
@@ -308,6 +320,7 @@ export default async function updateMap(req, res) {
         NEW_MASTER_INDEX.masterLayers = NEW_MASTER_SOURCE_LAYERS;
         NEW_MASTER_INDEX.buildLayers  = NEW_BUILD_NOTE_LAYERS;
 
+        console.log("STARTING THE WRITE JSON PROCESS * 5")
         // // 5.0 => WRITE NEW PRODUCTION FILES
         await writeJsonFile(NEW_MASTER_INDEX,             masterIdxBackupDir, 'master-index.json');
         await writeJsonFile(NEW_MASTER_SOURCE_COLLECTION, masterSrcBackupDir, 'master-source.json');
@@ -388,15 +401,24 @@ function diffFeatureProperties(oldFeature, newFeature) {
 }
 
 async function writeJsonFile(data, dir, filename) {
-    const fullPath = path.join(dir, filename);
-    await fs.writeFile(fullPath, JSON.stringify(data, null, 2), 'utf8');
+    try {
+        const fullPath = path.join(dir, filename);
+        console.log(fullPath, "line 405 - full path test")
+        await fs.writeFile(fullPath, JSON.stringify(data, null, 2), 'utf8');
+    } catch (err) {
+        console.error("❌ writeJsonFile error:", err.message, err.stack);
+    }
 }
 
 async function appendJsonLine(data, dir, filename) {
-    const fullPath = path.join(dir, filename);
-    const line = JSON.stringify(data) + "\n";
-    await fs.mkdir(dir, { recursive: true });
-    await fs.appendFile(fullPath, line);
+    try {
+        const fullPath = path.join(dir, filename);
+        const line = JSON.stringify(data) + "\n";
+        await fs.mkdir(dir, { recursive: true });
+        await fs.appendFile(fullPath, line);
+    } catch (err) {
+        console.log(err)
+    }
 }
 
 async function loadAndBackupJson(dir, filename, backupSuffix = '.backup.json') {
@@ -439,21 +461,15 @@ async function loadAndBackupJson(dir, filename, backupSuffix = '.backup.json') {
 }
 
 function mergeParcelProperties(oldProps = {}, newProps = {}) {
-    const merged = {};
+    const merged = { ...oldProps }; // start with everything from oldProps
 
-    // Union of all keys from both objects
-    const keys = new Set([...Object.keys(oldProps), ...Object.keys(newProps)]);
-
-    for (const key of keys) {
-        const newVal = newProps[key];
-        const oldVal = oldProps[key];
-
-        merged[key] = isValidValue(newVal) 
-            ? newVal
-            : isValidValue(oldVal) 
-            ? oldVal
-            : null;
-
+    for (const [key, newVal] of Object.entries(newProps)) {
+        if (newVal) {                 // only update if truthy
+            merged[key] = newVal;
+        } else if (!(key in merged)) {
+            // if it’s a brand new key but falsy, decide if you want to keep it
+            merged[key] = newVal; // or skip this line if you *don’t* want to add falsy keys
+        }
     }
 
     return merged;
