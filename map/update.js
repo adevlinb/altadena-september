@@ -3,11 +3,10 @@
 // PURPOSE OF THIS FILE:
 
 // THIS FILE SERVES AS THE ONLY ENTRY POINT INTO UPDATING DATA RELATED TO THE MAP
-// THE MASTER-INDEX IS A CLASS WITH A FEATURES PROPERTY WITH KEYS BASED ON THE PROPERTY PARCEL NUMBER -> 
+// THE MASTER-INDEX IS A CLASS WITH A FEATURES PROPERTY WITH KEYS BASED ON THE PROPERTY PARCEL NUMBER ->
+// THE MASTER INDEX IS USED AS A SINGLE SOURCE OF TRUTH / BACKUP 
 // THIS ALLOWS QUICK UPDATES AND METHODS BUILT INTO THE CLASS TAKE CARE OF THE ENTIRE
 // PROCESS OF BACKING UP, UPDATING, AND REWRITING THE GEOJSON FILES NEEDED TO DISPLAY MAP DATA
-
-// THIS FILE SHOULD NOT BE ALTERED!!!!!!
 
 // NOTE => THE SYSTEM CANNOT ACCEPT FILES THAT ARE NOT PART OF THE ORIGINAL DATASET 
 // UNLESS A USER PROVIDES THE COORDINATES NEEDED TO DISPLAY THE INFORMATION ON THE MAP (which is highly unlikely)
@@ -34,16 +33,16 @@ const mapSourceProdDir   = path.resolve(__dirname, "../src/assets/map");
 export default async function updateMap(req, res) {
 
 
-    const updates = req.body;    // rows to udpate (overwrites each time!!)
-    const type = req.query.type; // googleSheet for now
-    res.status(200).end();       // return response to settle incoming request
+    const updates = req.body;       // rows to udpate (overwrites each time!!)
+    const type    = req.query.type; // googleSheet for now (may be used later to run code based on type)
+    res.status(200).end();          // return response to settle incoming request
 
     if (updates.length === 0) return;
 
     // 0.0 SET CONSTANTS / GLOBAL VARS
     // MASTER INDEX
     const CURR_MASTER_INDEX = await loadAndBackupJson(masterIdxBackupDir, 'master-index.json');
-    const NEW_MASTER_INDEX = new MasterIndex('master-index');
+    const NEW_MASTER_INDEX  = new MasterIndex('master-index');
 
     // BASE SOURCE
     const CURR_BASE_SOURCE = await loadAndBackupJson(baseSrcBackupDir, 'base-source.json');
@@ -129,7 +128,7 @@ export default async function updateMap(req, res) {
         // 3.0 GENERATE NEW SOURCE FEATURES, LAYER VALUES, ROLODEX OF PARTNERS
         for (const [key, parcel] of Object.entries(CURR_MASTER_INDEX.features)) {
 
-            // 3.1 GENERATE BASE COLLECTION FEATURES
+            // 3.1 GENERATE BASE COLLECTION FEATURES / LAYER BIN VALUES
             const newBaseFeature = new BaseCollectionFeature(parcel);
             NEW_BASE_SOURCE_COLLECTION.features.push(newBaseFeature);
 
@@ -155,7 +154,7 @@ export default async function updateMap(req, res) {
                 }
             }
 
-            // 3.1 GENERATE MASTER COLLECTION / FEATURES / LAYERS
+            // 3.1 GENERATE MASTER COLLECTION FEATURE / LAYER BIN VALUES
             const newMasterFeature = new MasterCollectionFeature(parcel);
             NEW_MASTER_SOURCE_COLLECTION.features.push(newMasterFeature)
 
@@ -175,7 +174,7 @@ export default async function updateMap(req, res) {
                 }
             }
 
-            // 3.2 GENERATE MASTER COLLECTION / FEATURES / LAYERS
+            // 3.2 GENERATE BUILD NOTE LAYER BIN VALUES
             for (const layer of NEW_BUILD_NOTE_LAYERS) {
                 const value = parcel[layer.key];
 
@@ -214,14 +213,14 @@ export default async function updateMap(req, res) {
                     const partner = ROLODEX[name];
 
                     // Update missing contact info, add role if not present
-                    if (!partner.phone && parcel[`${role}PhoneNumber`]) partner.phone   = parcel[`${role}PhoneNumber`];
-                    if (!partner.email && parcel[`${role}Email`])       partner.email   = parcel[`${role}Email`];
+                    if (!partner.phone   && parcel[`${role}PhoneNumber`]) partner.phone   = parcel[`${role}PhoneNumber`];
+                    if (!partner.email   && parcel[`${role}Email`])       partner.email   = parcel[`${role}Email`];
                     if (!partner.website && parcel[`${role}Website`])   partner.website = parcel[`${role}Website`];
                     if (!partner.roles.includes(role)) partner.roles.push(role);
                 }
             });
 
-            // 3.4 GENERATE MASTER INDEX && FEATURES
+            // 3.4 GENERATE MASTER INDEX FEATURE
             const newIndexFeature = new MasterIndexFeature(parcel)
             NEW_MASTER_INDEX.features[parcel.parcelNum] = newIndexFeature;
             NEW_MASTER_INDEX.length += 1;
@@ -251,10 +250,6 @@ export default async function updateMap(req, res) {
             layer.formulas = Layer.buildLayerFormulas(layer);
         }
 
-        // ASSIGN NEW BASE SOURCE LAYERS
-        NEW_BASE_SOURCE_COLLECTION.layers = NEW_BASE_SOURCE_LAYERS;
-
-
         // 4.2 GENERATE MASTER SOURCE LAYER FORMULAS
         for (const layer of NEW_MASTER_SOURCE_LAYERS) {
             if (layer.dataType === "category") {
@@ -276,9 +271,6 @@ export default async function updateMap(req, res) {
 
             layer.formulas = Layer.buildLayerFormulas(layer);
         }
-
-        // ASSIGN NEW MASTER SOURCE LAYERS
-        NEW_MASTER_SOURCE_COLLECTION.layers = NEW_MASTER_SOURCE_LAYERS;
 
         // 4.3 GENERATE BUILD NOTE LAYER FORMULAS (master-source)
         for (const layer of NEW_BUILD_NOTE_LAYERS) {
@@ -304,11 +296,13 @@ export default async function updateMap(req, res) {
             layer.formulas = Layer.buildLayerFormulas(layer);
         }
 
-        // ASSIGN NEW MASTER BUILD NOTE LAYERS and ROLODEX
+        // 4.4 ASSIGN NEW LAYERS and ROLODEX
+        NEW_BASE_SOURCE_COLLECTION.layers        = NEW_BASE_SOURCE_LAYERS;
+        NEW_MASTER_SOURCE_COLLECTION.layers      = NEW_MASTER_SOURCE_LAYERS;
         NEW_MASTER_SOURCE_COLLECTION.buildLayers = NEW_BUILD_NOTE_LAYERS;
         NEW_MASTER_SOURCE_COLLECTION.rolodex     = ROLODEX;
 
-        // SET MASTER INDEX LAYERS (x3) and ROLODEX
+        // 4.5 SET MASTER INDEX LAYERS (x3) and ROLODEX
         NEW_MASTER_INDEX.rolodex      = ROLODEX;
         NEW_MASTER_INDEX.baseLayers   = NEW_BASE_SOURCE_LAYERS;
         NEW_MASTER_INDEX.masterLayers = NEW_MASTER_SOURCE_LAYERS;
