@@ -1,0 +1,3 @@
+{
+  "ignore": ["map/base_source/*", "map/master_source/*", "map/master_index/*", "public/*", "node_modules/*"]
+}

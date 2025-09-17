@@ -23,9 +23,20 @@ dist-ssr
 *.sln
 *.sw?
 
-# JSON FILES
-base-source.json
+# MAP RELATED ~ JSON FILES
+# history and rejected
 history.jsonl
-master-source.json
-master-index.json
 rejected-parcels.json
+
+# base source
+base-source.json
+base-source.backup.json
+
+# master source
+master-source.json
+master-source.backup.json
+
+# master source
+master-index.json
+master-index.backup.json
+
