@@ -28,7 +28,7 @@ const masterIdxBackupDir = path.resolve(__dirname, "../map/master_index");
 const historyDir         = path.resolve(__dirname, "../map/history");
 
 // PRODUCTION DIRECTORIES (assets in react)
-const mapSourceProdDir   = path.resolve(__dirname, "../public/map");
+// const mapSourceProdDir   = path.resolve(__dirname, "../public/map");
 
 export default async function updateMap(req, res) {
 
@@ -321,12 +321,12 @@ export default async function updateMap(req, res) {
         NEW_MASTER_INDEX.buildLayers  = NEW_BUILD_NOTE_LAYERS;
 
         console.log("STARTING THE WRITE JSON PROCESS * 5")
-        // // 5.0 => WRITE NEW PRODUCTION FILES
+        // // 5.0 => WRITE NEW FILES
         await writeJsonFile(NEW_MASTER_INDEX,             masterIdxBackupDir, 'master-index.json');
         await writeJsonFile(NEW_MASTER_SOURCE_COLLECTION, masterSrcBackupDir, 'master-source.json');
-        await writeJsonFile(NEW_MASTER_SOURCE_COLLECTION, mapSourceProdDir,   'master-source.json');
         await writeJsonFile(NEW_BASE_SOURCE_COLLECTION,   baseSrcBackupDir,   'base-source.json');
-        await writeJsonFile(NEW_BASE_SOURCE_COLLECTION,   mapSourceProdDir,   'base-source.json');
+        // await writeJsonFile(NEW_MASTER_SOURCE_COLLECTION, mapSourceProdDir,   'master-source.json');
+        // await writeJsonFile(NEW_BASE_SOURCE_COLLECTION,   mapSourceProdDir,   'base-source.json');
 
         // 6.0 => APPEND HISTORY ENTRY
         try {
@@ -402,9 +402,11 @@ function diffFeatureProperties(oldFeature, newFeature) {
 
 async function writeJsonFile(data, dir, filename) {
     try {
+        await fs.mkdir(dir, { recursive: true }); // ensure directory exists
         const fullPath = path.join(dir, filename);
-        console.log(fullPath, "line 405 - full path test")
+        console.log("Writing JSON file:", fullPath);
         await fs.writeFile(fullPath, JSON.stringify(data, null, 2), 'utf8');
+        console.log("✅ Successfully wrote:", fullPath);
     } catch (err) {
         console.error("❌ writeJsonFile error:", err.message, err.stack);
     }
@@ -426,6 +428,9 @@ async function loadAndBackupJson(dir, filename, backupSuffix = '.backup.json') {
     const backupPath = path.join(dir, filename.replace(/\.json$/, backupSuffix));
 
     try {
+
+        console.log(`convert filename: ${filename} to dir: ${dir}`)
+
         // 1. Try to load current file
         const fileData = await fs.readFile(currPath, 'utf-8');
         const jsonData = JSON.parse(fileData);
@@ -434,10 +439,12 @@ async function loadAndBackupJson(dir, filename, backupSuffix = '.backup.json') {
         try {
             await fs.unlink(backupPath);
         } catch (err) {
+            console.error(err)
             if (err.code !== 'ENOENT') throw err;
         }
 
         // 3. Rename current file to backup
+        console.log(currPath, backupPath, "line 444")
         await fs.rename(currPath, backupPath);
 
         // 4. Return loaded data

@@ -16,10 +16,12 @@ const __dirname = path.resolve();
 app.use(express.static(path.join(__dirname, 'dist')));
 
 // UPDATE PATH 
+// ✅ Serve the /public/map directory at /map
+app.use("/map", express.static(path.join(__dirname, "public/map")));
 app.put("/buildNote", checkApiKey, updateMap)
 
 // CATCH ALL ROUTE => `index.html`
-app.get('/{*any}', function(req, res) {
+app.use(/.*/, function(req, res) {
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 

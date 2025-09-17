@@ -12,12 +12,10 @@ import Layer            from "../components/Layer";
 import PropertyDetail   from "../components/PropertyDetail";
 
 const MAP_TOKEN=import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
-import BASE_SOURCE from "../assets/map/base-source.json";
-import MASTER_SOURCE from "../assets/map/master-source.json";
 
 // DATA, CONSTANTS, APIs
-const projectBounds   = "-118.69083089208162,34.0160835078113,-118.01095811981494,34.25408286864321";
-const PROPERTY_SOURCE = { type: "FeatureCollection", name: "property-source", id: `property-source-${new Date().toISOString()}`, features: [], layers: mapboxFuncs.propertyLayers }
+const projectBounds  = "-118.69083089208162,34.0160835078113,-118.01095811981494,34.25408286864321";
+const propertySource = { type: "FeatureCollection", name: "property-source", id: `property-source-${new Date().toISOString()}`, features: [], layers: mapboxFuncs.propertyLayers }
 
 export default function App({ user = {} }) {
 	const mapRef = useRef(null)
@@ -27,37 +25,64 @@ export default function App({ user = {} }) {
 	const [showMapLayers,   setShowMapLayers  ] = useState(false);
 	const [showPropDetail,  setShowPropDetail ] = useState(false);
 	const [showBuildLayers, setShowBuildLayers] = useState(false);
-	const buildLayers = MASTER_SOURCE.buildLayers.map(layer => layer.name);
+	const [buildLayerNames,setBuildLayerNames] = useState([])
+	const [baseSource,      setBaseSource     ] = useState(null);
+	const [masterSource,    setMasterSource   ] = useState(null);
 
+	console.log(mapLayers, buildLayerNames)
+
+	// STEP 1: Fetch JSONs early
 	useEffect(() => {
-		// CREATE NEW MAP
+		async function fetchSources() {
+		const [baseRes, masterRes] = await Promise.all([
+			fetch("http://localhost:3001/map/base_source/base-source.json").then(r => r.json()),
+			fetch("http://localhost:3001/map/master_source/master-source.json").then(r => r.json()),
+		]);
+
+			setBaseSource(baseRes);
+			setMasterSource(masterRes);
+		}
+		fetchSources();
+	}, []);
+
+	// STEP 2: Initialize map *after* JSONs are loaded
+	useEffect(() => {
+		if (!baseSource || !masterSource) return; // wait until both ready
+
 		mapboxgl.accessToken = MAP_TOKEN;
 		mapRef.current = new mapboxgl.Map({
 			container: mapContainerRef.current,
-			style: 'mapbox://styles/mapbox/light-v11',
+			style: "mapbox://styles/mapbox/light-v11",
 			center: user?.address?.centerpoint || [-118.137, 34.19],
 			zoom: 14,
 			maxBounds: [
-				[-119.35447269326701,33.42781319392145], // SW bounds
-				[-117.49354593738312,34.61177793652189]  // NE bounds
-			]
+				[-119.35447269326701, 33.42781319392145], // SW bounds
+				[-117.49354593738312, 34.61177793652189], // NE bounds
+			],
 		});
 
-		// SET MAP SETTINGS
 		mapRef.current.on("load", () => {
-			mapboxFuncs.addSourceAndLayers(mapRef, BASE_SOURCE,     true,  user);
-			mapboxFuncs.addSourceAndLayers(mapRef, MASTER_SOURCE,   false, user);
-			mapboxFuncs.addSourceAndLayers(mapRef, PROPERTY_SOURCE, false, user);
-			mapboxFuncs.addClickEvt(mapRef, setPropertyDetail, setShowPropDetail)
+			mapboxFuncs.addSourceAndLayers(mapRef, baseSource, true, user);
+			mapboxFuncs.addSourceAndLayers(mapRef, masterSource,false, user);
+			mapboxFuncs.addSourceAndLayers(mapRef, propertySource, false, user);
+			mapboxFuncs.addClickEvt(mapRef, setPropertyDetail, setShowPropDetail);
 		});
 
-		// SET MAP LAYERS AND PROPERTY LAYERS
-		setMapLayers([...mapLayers, ...BASE_SOURCE.layers, ...MASTER_SOURCE.layers, ...mapboxFuncs.propertyLayers]);
+		setMapLayers([
+			...mapLayers,
+			...baseSource.layers,
+			...masterSource.layers,
+			...masterSource.buildLayers,
+			...mapboxFuncs.propertyLayers,
+		]);
+
+		console.log(buildLayerNames)
+		setBuildLayerNames(masterSource.buildLayers.map(layer => layer.name));
 
 		return () => {
-			mapRef.current.remove()
-		}
-	}, [])
+			mapRef.current.remove();
+		};
+	}, [baseSource, masterSource]); // only runs once both are loaded
 
 	function updateMapLayers(layer, sublayer, action, formulaUpdate) {
 		if (!mapRef.current.getLayer(sublayer.id)) {
@@ -67,9 +92,7 @@ export default function App({ user = {} }) {
 
 		const updatedMapLayers = mapLayers.map(l => {
 			if (l.name === layer.name) {
-				const updatedFormulas = l.formulas.map(
-					subL => subL.id === sublayer.id ? formulaUpdate : subL 
-				);
+				const updatedFormulas = l.formulas.map(subL => subL.id === sublayer.id ? formulaUpdate : subL );
 				return { ...l, formulas: updatedFormulas };
 			}
 			return l;
@@ -115,7 +138,7 @@ export default function App({ user = {} }) {
 						<div onClick={() => setShowBuildLayers(!showBuildLayers)}>{ showBuildLayers ? "❌" : "✅" }</div>
 					</div>
 					<div style={{ display: showBuildLayers && mapLayers.length > 0 ? "block" : "none" }}>
-						{ mapLayers.map(l => (<Layer key={l.key} layer={l} updateMapLayers={updateMapLayers} property={false} buildNote={true} buildLayers={buildLayers} />)) }
+						{ mapLayers.map(l => (<Layer key={l.key} layer={l} updateMapLayers={updateMapLayers} property={false} buildNote={true} buildLayers={buildLayerNames} />)) }
 					</div>
 				</div>
 			</div>
