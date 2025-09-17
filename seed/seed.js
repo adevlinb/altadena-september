@@ -80,7 +80,7 @@ function setUnitInfo(p) {
 }
 
 initializeMapData()
-export async function initializeMapData(assetsDir = "../public/map") {
+export async function initializeMapData() {
 	try {
 		// PARSE, FLATTEN JSON DATA 
 		const originalGeojsonDataArrays = await Promise.all(
@@ -248,8 +248,8 @@ export async function initializeMapData(assetsDir = "../public/map") {
         MASTER_INDEX.buildLayers  = BUILD_NOTE_LAYERS;
 
 		// WRITE FILES AND BACKUP FILES
-		await writeAssetAndBackup(BASE_SOURCE_COLLECTION,   assetsDir,        'base-source.json');
-		await writeAssetAndBackup(MASTER_SOURCE_COLLECTION, assetsDir,        'master-source.json');
+		// await writeAssetAndBackup(BASE_SOURCE_COLLECTION,   assetsDir,        'base-source.json');
+		// await writeAssetAndBackup(MASTER_SOURCE_COLLECTION, assetsDir,        'master-source.json');
 		await writeAssetAndBackup(BASE_SOURCE_COLLECTION,   baseSrcDir,       'base-source.json');
 		await writeAssetAndBackup(MASTER_SOURCE_COLLECTION, masterSrcDir,     'master-source.json');
 		await writeAssetAndBackup(MASTER_INDEX,             masterIdxDir,     'master-index.json');
