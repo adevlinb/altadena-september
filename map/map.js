@@ -109,16 +109,24 @@ export class Layer {
             let filter, label;
 
             if (layer.dataType === 'range' && Array.isArray(value) && value.length === 2) {
-                // value is [min, max]
                 const [min, max] = value;
-                filter = ['all',
-                    [">=", ["get", layer.key], min],
-                    ["<",  ["get", layer.key], max]
-                ];
-                label = `${min} - ${max}`;
+
+                if (min === max) {
+                    // zero-length bin → equality check
+                    filter = ['==', ['get', layer.key], min];
+                    label = `${min}`;
+                } else {
+                    // normal range bin
+                    filter = [
+                        'all',
+                        [">=", ["get", layer.key], min],
+                        ["<",  ["get", layer.key], max]
+                    ];
+                    label = `${min} - ${max}`;
+                }
             } else {
                 // Assume categorical
-                filter = ["==", ["get", layer.key], value];
+                filter = ['==', ['get', layer.key], value];
                 label = String(value);
             }
 
@@ -126,76 +134,77 @@ export class Layer {
             sublayers.push(new Layer( sublayerId, label, layer.src, null, filter, layer.type, false, colors[index] ));
         });
 
-        return sublayers;
+        const finalFormulas = [];
+        const seenIds = new Set();
+        sublayers.forEach(f => {
+            if (seenIds.has(f.id)) return; // skip duplicate
+            seenIds.add(f.id);
+            finalFormulas.push(f);
+        });
+
+        return finalFormulas;
     }
 
     static generateBins(sortedValues, binCount = 10) {
-        if (!Array.isArray(sortedValues) || sortedValues.length === 0) 
+        if (!Array.isArray(sortedValues) || sortedValues.length === 0) {
             return { bins: [], counts: {} };
+        }
 
-        const n = sortedValues.length;
+        // Sort and deduplicate input values
+        const uniqueValues = Array.from(new Set(sortedValues)).sort((a, b) => a - b);
+        const n = uniqueValues.length;
+
+        // Adjust binCount if there are fewer unique values than requested bins
         binCount = Math.min(binCount, n);
 
         const bins = [];
         const counts = {};
-
-        const binSize = Math.floor(n / binCount);
         let startIdx = 0;
 
-        for (let i = 0; i < binCount; i++) {
-            const endIdx = (i === binCount - 1) ? n - 1 : (startIdx + binSize - 1);
+        for (let i = 0; i < binCount && startIdx < n; i++) {
+            // Determine bin end
+            const remaining = n - startIdx;
+            const binSize = Math.ceil(remaining / (binCount - i)); // distribute remaining values evenly
+            const endIdx = startIdx + binSize - 1;
 
-            let binMin = sortedValues[startIdx];
-            let binMax = sortedValues[endIdx];
+            let binMin = uniqueValues[startIdx];
+            let binMax = uniqueValues[Math.min(endIdx, n - 1)];
 
-            // Validate binMin and binMax
-            if (typeof binMin !== 'number' || isNaN(binMin)) binMin = 0;
-            if (typeof binMax !== 'number' || isNaN(binMax)) binMax = binMin;
-
-            // Fix zero-width bin (binMin === binMax)
-            if (binMin === binMax && endIdx < n - 1) {
-                let nextIdx = endIdx + 1;
-                while (nextIdx < n && sortedValues[nextIdx] === binMax) {
-                    nextIdx++;
-                }
-                if (nextIdx < n) {
-                    binMax = sortedValues[nextIdx];
-                }
-                // If no next distinct value, binMax stays the same
-            }
-
-            // Prevent overlapping bins
-            if (i > 0) {
-                const prevBinMax = bins[i - 1][1];
-                if (typeof prevBinMax === 'number' && !isNaN(prevBinMax) && binMin <= prevBinMax) {
-                    binMin = prevBinMax + 1;
+            // Prevent duplicate bin by checking previous bin
+            if (bins.length > 0) {
+                const [prevMin, prevMax] = bins[bins.length - 1];
+                if (binMin <= prevMax) {
+                    binMin = prevMax + 1;
                     if (binMin > binMax) {
-                        binMin = binMax; // prevent binMin > binMax
+                        binMin = binMax; // prevent invalid bin
                     }
                 }
             }
 
+            // Skip zero-width bins that duplicate previous bin
+            if (bins.length > 0 && binMin === binMax && binMin === bins[bins.length - 1][1]) {
+                startIdx += binSize;
+                continue;
+            }
+
             bins.push([binMin, binMax]);
 
-            // Count values inside bin range
+            // Count values in this bin
             let count = 0;
             for (let idx = startIdx; idx < n; idx++) {
-                const val = sortedValues[idx];
+                const val = uniqueValues[idx];
                 if (val >= binMin && val <= binMax) count++;
                 else if (val > binMax) break;
             }
 
-            const key = `${binMin} - ${binMax}`;
-            counts[key] = count;
+            counts[`${binMin} - ${binMax}`] = count;
 
-            // Move startIdx forward
-            while (startIdx < n && sortedValues[startIdx] <= binMax) {
-                startIdx++;
-            }
+            startIdx += binSize;
         }
 
         return { bins, counts };
     }
+
 
 }
 

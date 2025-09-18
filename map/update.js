@@ -27,6 +27,8 @@ const masterSrcBackupDir = path.resolve(__dirname, "../map/master_source");
 const masterIdxBackupDir = path.resolve(__dirname, "../map/master_index");
 const historyDir         = path.resolve(__dirname, "../map/history");
 
+let mapSourceProdDir;
+
 export default async function updateMap(req, res) {
 
 
@@ -111,15 +113,6 @@ export default async function updateMap(req, res) {
             return;
 
         // 2.0 => IMPLEMENT FEATURE UPDATES TO CURRENT MASTER INDEX
-        console.log(updates.length, "updates length")
-        console.log(updates.reduce((counts, obj) => {
-            const parcel = obj.parcelNum;
-            if (!parcel) return counts; // skip if no parcelNum
-
-            counts[parcel] = (counts[parcel] || 0) + 1;
-            return counts;
-        }, {}))
-        
         for (const update of updates) {
             
             const key = update.parcelNum;
@@ -130,7 +123,6 @@ export default async function updateMap(req, res) {
             const mergedProps = mergeParcelProperties(feature, update);
 
             CURR_MASTER_INDEX.features[key] = mergedProps;
-            console.log(CURR_MASTER_INDEX.features[key])
         }
 
         // 3.0 GENERATE NEW SOURCE FEATURES, LAYER VALUES, ROLODEX OF PARTNERS
@@ -243,6 +235,8 @@ export default async function updateMap(req, res) {
                 layer.binValues = Array.from(layer.binValues);
             } else if (layer.dataType === "range") {
 
+
+
                 const expanded = [];
                 for (const [value, count] of layer.binValues.entries()) {
                     for (let i = 0; i < count; i++) {
@@ -250,8 +244,10 @@ export default async function updateMap(req, res) {
                     }
                 }
 
-                expanded.sort((a, b) => a - b);
-                const { bins, counts } = Layer.generateBins(expanded);
+                // Deduplicate values, generate bins
+                const uniqueValues = Array.from(new Set(expanded));
+                uniqueValues.sort((a, b) => a - b);
+                const { bins, counts } = Layer.generateBins(uniqueValues);
                 layer.binValues = bins;   // the bin ranges: [[min, max], ...]
                 layer.binCount = counts; // number of items in each bin
             }
@@ -272,8 +268,10 @@ export default async function updateMap(req, res) {
                     }
                 }
 
-                expanded.sort((a, b) => a - b);
-                const { bins, counts } = Layer.generateBins(expanded);
+                // Deduplicate values, generate bins
+                const uniqueValues = Array.from(new Set(expanded));
+                uniqueValues.sort((a, b) => a - b);
+                const { bins, counts } = Layer.generateBins(uniqueValues);
                 layer.binValues = bins;   // the bin ranges: [[min, max], ...]
                 layer.binCount = counts; // number of items in each bin
             }
@@ -296,8 +294,10 @@ export default async function updateMap(req, res) {
                     }
                 }
 
-                expanded.sort((a, b) => a - b);
-                const { bins, counts } = Layer.generateBins(expanded);
+                // Deduplicate values, generate bins
+                const uniqueValues = Array.from(new Set(expanded));
+                uniqueValues.sort((a, b) => a - b);
+                const { bins, counts } = Layer.generateBins(uniqueValues);
                 layer.binValues = bins;   // the bin ranges: [[min, max], ...]
                 layer.binCount = counts; // number of items in each bin
             }
@@ -309,7 +309,7 @@ export default async function updateMap(req, res) {
         NEW_BASE_SOURCE_COLLECTION.layers        = NEW_BASE_SOURCE_LAYERS;
         NEW_MASTER_SOURCE_COLLECTION.layers      = NEW_MASTER_SOURCE_LAYERS;
         NEW_MASTER_SOURCE_COLLECTION.buildLayers = NEW_BUILD_NOTE_LAYERS;
-        NEW_MASTER_SOURCE_COLLECTION.rolodex     = ROLODEX;
+        NEW_MASTER_SOURCE_COLLECTION.rolodex     = Object.values(ROLODEX);
 
         // 4.5 SET MASTER INDEX LAYERS (x3) and ROLODEX
         NEW_MASTER_INDEX.rolodex      = Object.values(ROLODEX);
@@ -334,8 +334,8 @@ export default async function updateMap(req, res) {
 
         const requiredFiles = [
             { name: 'master-index.json',  paths: [masterIdxBackupDir, masterIdxBackupDir] },
-            { name: 'master-source.json', paths: [mapSourceProdDir,   masterSrcBackupDir] },
-            { name: 'base-source.json',   paths: [mapSourceProdDir,   baseSrcBackupDir]   },
+            { name: 'master-source.json', paths: [masterSrcBackupDir, masterSrcBackupDir] },
+            { name: 'base-source.json',   paths: [baseSrcBackupDir,   baseSrcBackupDir]   },
         ];
 
         const missingFileRecords = [];
@@ -398,9 +398,7 @@ async function writeJsonFile(data, dir, filename) {
     try {
         await fs.mkdir(dir, { recursive: true }); // ensure directory exists
         const fullPath = path.join(dir, filename);
-        console.log("Writing JSON file:", fullPath);
         await fs.writeFile(fullPath, JSON.stringify(data, null, 2), 'utf8');
-        console.log("✅ Successfully wrote:", fullPath);
     } catch (err) {
         console.error("❌ writeJsonFile error:", err.message, err.stack);
     }

@@ -15,10 +15,11 @@ app.use(express.json());
 const __dirname = path.resolve();
 app.use(express.static(path.join(__dirname, 'dist')));
 
-// UPDATE PATH 
-// ✅ Serve the /public/map directory at /map
-// app.use("/map", express.static(path.join(__dirname, "public/map")));
-app.use("/map", express.static(path.join(__dirname, "map")));
+app.use("/map", express.static(path.join(__dirname, "map"), {
+  setHeaders: (res, path) => {
+    res.setHeader("Cache-Control", "no-store");
+  }
+}));
 app.put("/buildNote", checkApiKey, updateMap)
 
 // CATCH ALL ROUTE => `index.html`

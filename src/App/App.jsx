@@ -31,8 +31,6 @@ export default function App({ user = {} }) {
 	const [baseSource,      setBaseSource     ] = useState(null);
 	const [masterSource,    setMasterSource   ] = useState(null);
 
-	console.log(masterSource?.rolodex)
-
 	// STEP 1: Fetch JSONs early
 	useEffect(() => {
 		async function fetchSources() {
@@ -41,6 +39,7 @@ export default function App({ user = {} }) {
 				fetch("http://localhost:3001/map/master_source/master-source.json").then(r => r.json()),
 			]);
 
+			console.log(masterRes.rolodex, "testing fetch updated geojson")
 			setBaseSource(baseRes);
 			setMasterSource(masterRes);
 		}
@@ -48,9 +47,8 @@ export default function App({ user = {} }) {
 		fetchSources();
 	}, []);
 
-	// STEP 2: Initialize map *after* JSONs are loaded
 	useEffect(() => {
-		if (!baseSource || !masterSource) return; // wait until both ready
+		if (!baseSource || !masterSource) return; 
 
 		mapboxgl.accessToken = MAP_TOKEN;
 		mapRef.current = new mapboxgl.Map({
