@@ -1,43 +1,45 @@
 import { useState, memo } from "react";
 
 const PropertyDetail = ({ entry }) => {
-    const [showRolodexInfo, setShowRolodexInfo] = useState(true)
 
     if (!entry) return null;
 
     return (
-        <div className="map-layers-container">
-            {/* <div className="sub-label detail-color" style={{ marginBottom: `${showRolodexInfo ? "10px" : "0px"}` }}>
-                <h2>Businesses:</h2>
-                <div onClick={() => setShowRolodexInfo(!showRolodexInfo)}>{ showRolodexInfo ? "❌" : "✅" }</div>
-            </div> */}
+        <div className="rolodex-items-container">
+            {entry.name && (
+                <div className="rolodex-detail-container">
+                    <div>Name:</div>
+                    <div>{entry.name}</div>
+                </div>
+            )}
 
-            <div style={{ display: `${showRolodexInfo ? "block" : "none"}` }}>
-                <table className="property-details-table">
-                    <tbody>
-                        {entry.name && (
-                            <tr><th>Name:</th><td id="name">{entry.name}</td></tr>
-                        )}
+            {entry.phone && (
+                <div className="rolodex-detail-container">
+                    <div>Number:</div>
+                    <div>{entry.phone}</div>
+                </div>
+            )}
 
-                        {entry.phone && (
-                            <tr><th>Number:</th><td id="phone">{entry.phone}</td></tr>
-                        )}
+            {entry.email && (
+                <div className="rolodex-detail-container">
+                    <div>Email:</div>
+                    <div>{entry.email}</div>
+                </div>
+            )}
 
-                        {entry.email && (
-                            <tr><th>Email:</th><td id="email">{entry.email}</td></tr>
-                        )}
+            {entry.website && (
+                <div className="rolodex-detail-container">
+                    <div>Website:</div>
+                    <a id="rolo-link" href={entry.website} target="_blank">{entry.website}</a>
+                </div>
+            )}
 
-                        {entry.website && (
-                            <tr><th>Website:</th><td id="website">{entry.website}</td></tr>
-                        )}
-
-                        {entry?.roles.length > 0 && (
-                            <tr><th>Roles:</th><td id="damage">{entry.roles.join(" ,")}</td></tr>
-                        )}
-                    </tbody>
-                </table>
-            </div>
-
+            {entry?.roles.length > 0 && (
+                <div className="rolodex-detail-container">
+                    <div>Roles:</div>
+                    <div>{entry.roles.join(" ,")}</div>
+                </div>
+            )}
         </div>
     )
 }
