@@ -54,7 +54,8 @@ div[class*="--Results"] {
 
 .search-container,
 .property-container,
-.mapkey-container {
+.mapkey-container,
+.rolodex-container {
     position: relative;
     width: 99%;
     height: 100%;

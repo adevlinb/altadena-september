@@ -10,6 +10,7 @@ import * as mapboxFuncs from "./mapbox-functions";
 import { SearchBox }    from '@mapbox/search-js-react';
 import Layer            from "../components/Layer";
 import PropertyDetail   from "../components/PropertyDetail";
+import RolodexEntry     from "../components/RolodexEntry";
 
 const MAP_TOKEN=import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
 
@@ -25,11 +26,12 @@ export default function App({ user = {} }) {
 	const [showMapLayers,   setShowMapLayers  ] = useState(false);
 	const [showPropDetail,  setShowPropDetail ] = useState(false);
 	const [showBuildLayers, setShowBuildLayers] = useState(false);
-	const [buildLayerNames,setBuildLayerNames] = useState([])
+	const [showRolodex,     setShowRolodex    ] = useState(false);
+	const [buildLayerNames, setBuildLayerNames] = useState([])
 	const [baseSource,      setBaseSource     ] = useState(null);
 	const [masterSource,    setMasterSource   ] = useState(null);
 
-	console.log(mapLayers, buildLayerNames)
+	console.log(masterSource?.rolodex)
 
 	// STEP 1: Fetch JSONs early
 	useEffect(() => {
@@ -140,6 +142,15 @@ export default function App({ user = {} }) {
 					</div>
 					<div style={{ display: showBuildLayers && mapLayers.length > 0 ? "block" : "none" }}>
 						{ mapLayers.map(l => (<Layer key={l.key} layer={l} updateMapLayers={updateMapLayers} property={false} buildNote={true} buildLayers={buildLayerNames} />)) }
+					</div>
+				</div>
+				<div className="rolodex-container">
+					<div className="main-label">
+						<h1>Rolodex:</h1>
+						<div onClick={() => setShowRolodex(!showRolodex)}>{ showRolodex ? "❌" : "✅" }</div>
+					</div>
+					<div style={{ display: showRolodex && masterSource?.rolodex.length > 0 ? "block" : "none" }}>
+						{ masterSource?.rolodex.map(entry => (<RolodexEntry key={entry.name} entry={entry} />)) }
 					</div>
 				</div>
 			</div>

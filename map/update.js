@@ -27,9 +27,6 @@ const masterSrcBackupDir = path.resolve(__dirname, "../map/master_source");
 const masterIdxBackupDir = path.resolve(__dirname, "../map/master_index");
 const historyDir         = path.resolve(__dirname, "../map/history");
 
-// PRODUCTION DIRECTORIES (assets in react)
-// const mapSourceProdDir   = path.resolve(__dirname, "../public/map");
-
 export default async function updateMap(req, res) {
 
 
@@ -215,6 +212,7 @@ export default async function updateMap(req, res) {
                 // Initialize the contributor in the rolodex if not seen before
                 if (!ROLODEX[name]) {
                     ROLODEX[name] = {
+                    name,
                     phone:   parcel[`${role}PhoneNumber`] || null,
                     email:   parcel[`${role}Email`]       || null,
                     website: parcel[`${role}Website`]     || null,
@@ -307,7 +305,6 @@ export default async function updateMap(req, res) {
             layer.formulas = Layer.buildLayerFormulas(layer);
         }
 
-        console.log("rolodex: ", ROLODEX)
         // 4.4 ASSIGN NEW LAYERS and ROLODEX
         NEW_BASE_SOURCE_COLLECTION.layers        = NEW_BASE_SOURCE_LAYERS;
         NEW_MASTER_SOURCE_COLLECTION.layers      = NEW_MASTER_SOURCE_LAYERS;
@@ -315,18 +312,15 @@ export default async function updateMap(req, res) {
         NEW_MASTER_SOURCE_COLLECTION.rolodex     = ROLODEX;
 
         // 4.5 SET MASTER INDEX LAYERS (x3) and ROLODEX
-        NEW_MASTER_INDEX.rolodex      = ROLODEX;
+        NEW_MASTER_INDEX.rolodex      = Object.values(ROLODEX);
         NEW_MASTER_INDEX.baseLayers   = NEW_BASE_SOURCE_LAYERS;
         NEW_MASTER_INDEX.masterLayers = NEW_MASTER_SOURCE_LAYERS;
         NEW_MASTER_INDEX.buildLayers  = NEW_BUILD_NOTE_LAYERS;
 
-        console.log("STARTING THE WRITE JSON PROCESS * 5")
         // // 5.0 => WRITE NEW FILES
         await writeJsonFile(NEW_MASTER_INDEX,             masterIdxBackupDir, 'master-index.json');
         await writeJsonFile(NEW_MASTER_SOURCE_COLLECTION, masterSrcBackupDir, 'master-source.json');
         await writeJsonFile(NEW_BASE_SOURCE_COLLECTION,   baseSrcBackupDir,   'base-source.json');
-        // await writeJsonFile(NEW_MASTER_SOURCE_COLLECTION, mapSourceProdDir,   'master-source.json');
-        // await writeJsonFile(NEW_BASE_SOURCE_COLLECTION,   mapSourceProdDir,   'base-source.json');
 
         // 6.0 => APPEND HISTORY ENTRY
         try {
@@ -483,7 +477,7 @@ function mergeParcelProperties(oldProps = {}, newProps = {}) {
 }
 
 function isValidValue(val) {
-    return val !== undefined && val !== null && val !== '' && val !== false;
+    return val !== undefined && val !== null && val !== '' && val !== false && val !== 0;
 }
 
 function normalizeName(name) {

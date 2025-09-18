@@ -31,6 +31,15 @@ export function addSourceAndLayers(mapRef, source, isBaseSource, user) {
             if (formula?.id) mapRef.current.addLayer(formula)
         });
     });
+    
+    if (source.name === "master-source") 
+        source.buildLayers.forEach(layer => {
+            layer.formulas.forEach(formula => {
+                if (Array.isArray(formula.filter) && formula.filter.length < 1) delete formula.filter
+                if (formula?.id) mapRef.current.addLayer(formula)
+            });
+        });
+
 }
 
 export async function flyToAndSetProperty(res, mapRef, user, setPropertyDetail, setShowPropDetail) {

@@ -21,7 +21,6 @@ const masterSrcDir     = path.resolve(__dirname, '../map/master_source');
 const masterIdxDir     = path.resolve(__dirname, '../map/master_index');
 const rejectedItemsDir = path.resolve(__dirname, '../map/rejectedParcels');
 const historyDir       = path.resolve(__dirname, '../map/history');
-// const assetsDir        = path.resolve(__dirname, "../public/map");
 
 const dataFiles = [
 	'altadena_1.json', 
@@ -334,5 +333,5 @@ function diffFeatureProperties(oldFeature, newFeature) {
 }
 
 function isValidValue(val) {
-  return val !== undefined && val !== null && val !== '' && val !== false;
+    return val !== undefined && val !== null && val !== '' && val !== false && val !== 0;
 }

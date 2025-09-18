@@ -200,7 +200,7 @@ export class Layer {
 }
 
 export class FeatureCollection {
-    constructor(name, features = [], layers = [], buildLayers = [], rolodex = {}) {
+    constructor(name, features = [], layers = [], buildLayers = [], rolodex = []) {
         this.type        = "FeatureCollection";
 		this.id          = `${name}-${new Date().toISOString()}`; // "base-source" or "master-source" w/ date of creation
         this.name        = name        // "base-source" or "master-source" => for layers to point to
