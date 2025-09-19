@@ -30,7 +30,7 @@ const PropertyDetail = ({ entry, idx }) => {
             {entry.website && (
                 <div className="rolodex-detail-container">
                     <div>Website:</div>
-                    <a className="rolo-link" href={entry.website} target="_blank">{entry.website}</a>
+                    <a className="rolo-link" href={`https://${entry.website}`} target="_blank">{entry.website}</a>
                 </div>
             )}
 
