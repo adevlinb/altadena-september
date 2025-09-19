@@ -1,6 +1,7 @@
 // IMPORTS
 import { useEffect, useState, useRef } from "react";
 import { useDeepState }                from "./hooks";
+import { ToggleSlider } from "react-toggle-slider";
 import "./App.css";
 import 'mapbox-gl/dist/mapbox-gl.css';
 import mapboxgl from 'mapbox-gl'
@@ -30,8 +31,8 @@ export default function App({ user = {} }) {
 	const [buildLayerNames, setBuildLayerNames] = useState([])
 	const [baseSource,      setBaseSource     ] = useState(null);
 	const [masterSource,    setMasterSource   ] = useState(null);
+	const TOGGLE_PROPS = { handleSize: 12, barHeight: 16, barWidth: 32, barBackgroundColor: "#1ABC9C", barBackgroundColorActive: "#E74C3C" };
 
-	// STEP 1: Fetch JSONs early
 	useEffect(() => {
 		async function fetchSources() {
 			const [baseRes, masterRes] = await Promise.all([
@@ -39,9 +40,9 @@ export default function App({ user = {} }) {
 				fetch("http://localhost:3001/map/master_source/master-source.json").then(r => r.json()),
 			]);
 
-			console.log(masterRes.rolodex, "testing fetch updated geojson")
 			setBaseSource(baseRes);
 			setMasterSource(masterRes);
+			setBuildLayerNames(masterRes.buildLayers.map(layer => layer.name))
 		}
 		
 		fetchSources();
@@ -77,9 +78,6 @@ export default function App({ user = {} }) {
 			...mapboxFuncs.propertyLayers,
 		]);
 
-		console.log(buildLayerNames)
-		setBuildLayerNames(masterSource.buildLayers.map(layer => layer.name));
-
 		return () => {
 			mapRef.current.remove();
 		};
@@ -103,63 +101,57 @@ export default function App({ user = {} }) {
 		mapboxFuncs.updateLayers(mapRef, layer, formulaUpdate, action);
 	}
 
+
 	return (
 		<main>
         <div id="map-page">
             <div id="map-container" ref={mapContainerRef} ></div>
+			{ baseSource && masterSource && <>
 			<div id="search-mapkey-property-container">
 				<div className="search-container">
 					<SearchBox id="autocomplete-list" accessToken={MAP_TOKEN} options={{ language: 'en', country: 'US', bbox: projectBounds }} map={mapRef.current} mapboxgl={mapboxgl} onRetrieve={(res) => mapboxFuncs.flyToAndSetProperty(res, mapRef, user, setPropertyDetail, setShowPropDetail)} />
 				</div>
 				<div className="mapkey-container">
 					<div className="main-label">
-						<h1>Map Layers:</h1>
-						<div onClick={() => setShowMapLayers(!showMapLayers)}>{ showMapLayers ? "❌" : "✅" }</div>
+						<h3>Map Layers:</h3>
+						<ToggleSlider {...TOGGLE_PROPS} onToggle={showMapLayers => setShowMapLayers(showMapLayers)} />
 					</div>
 					<div style={{ display: showMapLayers && mapLayers.length > 0 ? "block" : "none" }}>
-						{ mapLayers.map(l => (<Layer key={l.key} layer={l} updateMapLayers={updateMapLayers} property={false} buildNote={false} />)) }
-					</div>
-				</div>
-				<div className="property-container">
-					<div className="main-label">
-						<h1>Property Detail:</h1>
-						{ propertyDetail 
-							? <div onClick={() => setShowPropDetail(!showPropDetail)}>{ showPropDetail ? "❌" : "✅" }</div>
-							: <div>🚫</div>
-						}
-					</div>
-					<div style={{ display: propertyDetail && showPropDetail ? "block" : "none" }}>
-						{ mapLayers.map(l => (<Layer key={l.key} layer={l} updateMapLayers={updateMapLayers} property={true} buildNote={false} />)) }
-						<PropertyDetail propertyDetail={propertyDetail} />
+						{ mapLayers.map(l => (<Layer key={l.key} layer={l} updateMapLayers={updateMapLayers} property={false} buildNote={false} buildLayerNames={buildLayerNames}  />)) }
 					</div>
 				</div>
 				<div className="mapkey-container">
 					<div className="main-label">
-						<h1>Build Notes:</h1>
-						<div onClick={() => setShowBuildLayers(!showBuildLayers)}>{ showBuildLayers ? "❌" : "✅" }</div>
+						<h3>Build Notes:</h3>
+						<ToggleSlider {...TOGGLE_PROPS} onToggle={showBuildLayers => setShowBuildLayers(showBuildLayers)} />
 					</div>
 					<div style={{ display: showBuildLayers && mapLayers.length > 0 ? "block" : "none" }}>
-						{ mapLayers.map(l => (<Layer key={l.key} layer={l} updateMapLayers={updateMapLayers} property={false} buildNote={true} buildLayers={buildLayerNames} />)) }
+						{ mapLayers.map(l => (<Layer key={l.key} layer={l} updateMapLayers={updateMapLayers} property={false} buildNote={true} buildLayerNames={buildLayerNames} />)) }
 					</div>
 				</div>
 				<div className="rolodex-container">
 					<div className="main-label">
-						<h1>Rolodex:</h1>
-						<div onClick={() => setShowRolodex(!showRolodex)}>{ showRolodex ? "❌" : "✅" }</div>
+						<h3>Rolodex: ({masterSource?.rolodex.length})</h3>
+						<ToggleSlider {...TOGGLE_PROPS} onToggle={showRolodex => setShowRolodex(showRolodex)} />
 					</div>
-					<div style={{ display: showRolodex && masterSource?.rolodex.length > 0 ? "block" : "none" }}>
-						{ masterSource?.rolodex.map(entry => (<RolodexEntry key={entry.name} entry={entry} />)) }
+					<div className="rolodex-items-container" style={{ display: showRolodex && masterSource?.rolodex.length > 0 ? "block" : "none" }}>
+						{ masterSource?.rolodex.map((entry, idx) => (<RolodexEntry key={entry.name} entry={entry} idx={idx}/>)) }
+					</div>
+				</div>
+				<div className="property-container">
+					<div className="main-label">
+						<h3>Property Detail:</h3>
+						{ !propertyDetail && <div>🚫</div> }
+						{  propertyDetail && <ToggleSlider {...TOGGLE_PROPS} onToggle={showPropDetail => setShowPropDetail(showPropDetail)} /> }
+					</div>
+					<div style={{ display: propertyDetail && showPropDetail ? "block" : "none" }}>
+						{ mapLayers.map(l => (<Layer key={l.key} layer={l} updateMapLayers={updateMapLayers} property={true} buildNote={false} buildLayerNames={buildLayerNames}  />)) }
+						<PropertyDetail propertyDetail={propertyDetail} />
 					</div>
 				</div>
 			</div>
+			</>}
 		</div>
 		</main>
-	);
-
+	)
 }
-
-
-
-
-								// <button onClick={() => mapboxFuncs.updateLayers(mapRef, "distance-circles-layer", { id: "distance-circles-layer" }, "visibility")}>Clear Circles</button>
-								// <button onClick={() => mapboxFuncs.updateLayers(mapRef, "center-point-layer",     { id: "center-point-layer" },     "visibility")}>Clear Center Point</button>

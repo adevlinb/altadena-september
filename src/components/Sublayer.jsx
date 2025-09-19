@@ -27,10 +27,10 @@ export default function Sublayer({ layer, sublayer, updateMapLayers }) {
     }
 
     return (
-        <div className="map-sublayer-container">
+        <div className="map-sublayer-container map-sublayer-container-spacing">
             <div className="map-sublayer-container">
                 <input type="checkbox" checked={sublayer.layout.visibility === 'visible'} name="visibility" onChange={handleChange} />
-                <h1>{sublayer.name} <small className="detail-color">{sublayer?.name in layer.binCount ? `(${layer.binCount[`${sublayer.name}`]})` : ''}</small></h1>
+                <h4>{sublayer.name}<small className="detail-color">{sublayer?.name in layer.binCount ? `(${layer.binCount[`${sublayer.name}`]})` : ''}</small></h4>
             </div>
             <div className="map-sublayer-container">
                 <input name="color" type="color" value={sublayer.paint[color[layer.type]]} onChange={handleChange} />

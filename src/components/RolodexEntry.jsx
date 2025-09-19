@@ -1,11 +1,11 @@
-import { useState, memo } from "react";
+import { memo } from "react";
 
-const PropertyDetail = ({ entry }) => {
+const PropertyDetail = ({ entry, idx }) => {
 
     if (!entry) return null;
 
     return (
-        <div className="rolodex-items-container">
+        <div className="rolodex-entry-container">
             {entry.name && (
                 <div className="rolodex-detail-container">
                     <div>Name:</div>
@@ -30,7 +30,7 @@ const PropertyDetail = ({ entry }) => {
             {entry.website && (
                 <div className="rolodex-detail-container">
                     <div>Website:</div>
-                    <a id="rolo-link" href={entry.website} target="_blank">{entry.website}</a>
+                    <a className="rolo-link" href={entry.website} target="_blank">{entry.website}</a>
                 </div>
             )}
 
@@ -40,6 +40,8 @@ const PropertyDetail = ({ entry }) => {
                     <div>{entry.roles.join(" ,")}</div>
                 </div>
             )}
+
+            <div className="rolo-index">[{idx}]</div>
         </div>
     )
 }

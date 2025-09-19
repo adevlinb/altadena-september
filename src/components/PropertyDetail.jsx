@@ -1,60 +1,87 @@
 import { useState, memo } from "react";
+import { ToggleSlider } from "react-toggle-slider";
 
 const PropertyDetail = ({ propertyDetail }) => {
     const [showDetailInfo, setShowDetailInfo] = useState(true)
+    	const TOGGLE_PROPS = { handleSize: 12, barHeight: 16, barWidth: 32, barBackgroundColor: "#1ABC9C", barBackgroundColorActive: "#E74C3C" };
 
     if (!propertyDetail) return null;
 
     return (
         <div className="map-layers-container">
-            <div className="sub-label detail-color" style={{ marginBottom: `${showDetailInfo ? "10px" : "0px"}` }}>
-                <h2>Details:</h2>
-                <div onClick={() => setShowDetailInfo(!showDetailInfo)}>{ showDetailInfo ? "❌" : "✅" }</div>
+            <div className="map-layer-label" style={{ marginBottom: `${showDetailInfo ? "10px" : "0px"}` }}>
+                <h4 style={{ color: "rgb(255, 208, 0)"}}>Details:</h4>
+                <ToggleSlider {...TOGGLE_PROPS} onToggle={showDetailInfo => setShowDetailInfo(showDetailInfo)} />
             </div>
 
             <div style={{ display: `${showDetailInfo ? "block" : "none"}` }}>
-                <table className="property-details-table">
-                    <tbody>
-                        {propertyDetail.address && (
-                            <>
-                                <tr><th>Address:</th><td id="address">{propertyDetail.address}</td></tr>
-                                {propertyDetail.cityState && (
-                                    <tr><th>City/State/Zip:</th><td>{propertyDetail.cityState}, {propertyDetail.zipCode}</td></tr>
-                                )}
-                            </>
-                        )}
+                <div className="property-details-card">
+                    {propertyDetail.address && (
+                        <div className="property-detail-row">
+                        <div className="label">Address:</div>
+                        <div className="value">{propertyDetail.address}</div>
+                        </div>
+                    )}
 
-                        {propertyDetail.community && (
-                            <tr><th>Neighborhood:</th><td id="community">{propertyDetail.community}</td></tr>
-                        )}
+                    {propertyDetail.cityState && (
+                        <div className="property-detail-row">
+                        <div className="label"></div>
+                        <div className="value">
+                            {propertyDetail.cityState}, {propertyDetail.zipCode}
+                        </div>
+                        </div>
+                    )}
 
-                        {propertyDetail.fireName && (
-                            <tr><th>Fire:</th><td id="fireName">{propertyDetail.fireName}</td></tr>
-                        )}
+                    {propertyDetail.community && (
+                        <div className="property-detail-row">
+                        <div className="label" >Community:</div>
+                        <div className="value">{propertyDetail.community}</div>
+                        </div>
+                    )}
 
-                        {propertyDetail.damage && (
-                            <tr><th>Amt Damage:</th><td id="damage">{propertyDetail.damage}</td></tr>
-                        )}
+                    {propertyDetail.fireName && (
+                        <div className="property-detail-row">
+                        <div className="label">Fire:</div>
+                        <div className="value">{propertyDetail.fireName}</div>
+                        </div>
+                    )}
 
-                        {propertyDetail.propertyType && (
-                            <tr><th>Property Type:</th><td id="propertyType">{propertyDetail.propertyType}</td></tr>
-                        )}
+                    {propertyDetail.damage && (
+                        <div className="property-detail-row">
+                        <div className="label">Amt Damage:</div>
+                        <div className="value">{propertyDetail.damage}</div>
+                        </div>
+                    )}
 
-                        {propertyDetail.lotSizeAcres && (
-                            <tr><th>Lot Size (Acres):</th><td id="lotSizeAcres">{propertyDetail.lotSizeAcres}</td></tr>
-                        )}
+                    {propertyDetail.propertyType && (
+                        <div className="property-detail-row">
+                        <div className="label">Property Type:</div>
+                        <div className="value">{propertyDetail.propertyType}</div>
+                        </div>
+                    )}
 
-                        {propertyDetail.lotSizeMeters && (
-                            <tr><th>Lot Size (Sq Meters):</th><td id="lotSizeMeters">{propertyDetail.lotSizeMeters}</td></tr>
-                        )}
+                    {propertyDetail.lotSizeAcres && (
+                        <div className="property-detail-row">
+                        <div className="label">Lot Size:</div>
+                        <div className="value">{propertyDetail.lotSizeAcres} acres</div>
+                        </div>
+                    )}
 
-                        {propertyDetail.parcelNum && (
-                            <tr><th>Parcel Number:</th><td id="parcel">{propertyDetail.parcelNum}</td></tr>
-                        )}
-                    </tbody>
-                </table>
+                    {propertyDetail.lotSizeMeters && (
+                        <div className="property-detail-row">
+                        <div className="label">Lot Size:</div>
+                        <div className="value">{propertyDetail.lotSizeMeters} sq. meters</div>
+                        </div>
+                    )}
+
+                    {propertyDetail.parcelNum && (
+                        <div className="property-detail-row">
+                        <div className="label">Parcel Number:</div>
+                        <div className="value">{propertyDetail.parcelNum}</div>
+                        </div>
+                    )}
+                </div>
             </div>
-
         </div>
     )
 }
