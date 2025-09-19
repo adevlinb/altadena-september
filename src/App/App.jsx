@@ -31,7 +31,9 @@ export default function App({ user = {} }) {
 	const [buildLayerNames, setBuildLayerNames] = useState([])
 	const [baseSource,      setBaseSource     ] = useState(null);
 	const [masterSource,    setMasterSource   ] = useState(null);
-	const TOGGLE_PROPS = { handleSize: 12, barHeight: 16, barWidth: 32, barBackgroundColor: "#1ABC9C", barBackgroundColorActive: "#E74C3C" };
+	const TOGGLE_PROPS = { handleSize: 12, barHeight: 16, barWidth: 32, barBackgroundColor: "#2980B9", barBackgroundColorActive: "#E74C3C" };
+
+	console.log(showPropDetail, "testing showing prop app 36")
 
 	useEffect(() => {
 		async function fetchSources() {
@@ -109,7 +111,7 @@ export default function App({ user = {} }) {
 			{ baseSource && masterSource && <>
 			<div id="search-mapkey-property-container">
 				<div className="search-container">
-					<SearchBox id="autocomplete-list" accessToken={MAP_TOKEN} options={{ language: 'en', country: 'US', bbox: projectBounds }} map={mapRef.current} mapboxgl={mapboxgl} onRetrieve={(res) => mapboxFuncs.flyToAndSetProperty(res, mapRef, user, setPropertyDetail, setShowPropDetail)} />
+					<SearchBox id="autocomplete-list" accessToken={MAP_TOKEN} options={{ language: 'en', country: 'US', bbox: projectBounds }} map={mapRef.current} mapboxgl={mapboxgl} onRetrieve={(res) => mapboxFuncs.flyToAndSetProperty(res, mapRef, setPropertyDetail, setShowPropDetail)} />
 				</div>
 				<div className="mapkey-container">
 					<div className="main-label">
@@ -142,11 +144,11 @@ export default function App({ user = {} }) {
 					<div className="main-label">
 						<h3>Property Detail:</h3>
 						{ !propertyDetail && <div>🚫</div> }
-						{  propertyDetail && <ToggleSlider {...TOGGLE_PROPS} onToggle={showPropDetail => setShowPropDetail(showPropDetail)} /> }
+						{  propertyDetail && <ToggleSlider {...TOGGLE_PROPS} active={showPropDetail} key={showPropDetail ? "on" : "off"} onToggle={() => setShowPropDetail(prev => !prev)} /> }
 					</div>
 					<div style={{ display: propertyDetail && showPropDetail ? "block" : "none" }}>
 						{ mapLayers.map(l => (<Layer key={l.key} layer={l} updateMapLayers={updateMapLayers} property={true} buildNote={false} buildLayerNames={buildLayerNames}  />)) }
-						<PropertyDetail propertyDetail={propertyDetail} />
+						<PropertyDetail propertyDetail={propertyDetail} showPropDetail={showPropDetail} />
 					</div>
 				</div>
 			</div>

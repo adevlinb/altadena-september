@@ -41,7 +41,7 @@ const PropertyDetail = ({ entry, idx }) => {
                 </div>
             )}
 
-            <div className="rolo-index">[{idx}]</div>
+            <div className="rolo-index">{idx}</div>
         </div>
     )
 }

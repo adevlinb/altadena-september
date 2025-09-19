@@ -4,7 +4,7 @@ import { ToggleSlider } from "react-toggle-slider";
 
 const Layer = ({ layer, updateMapLayers, property, buildNote, buildLayerNames }) => {
     const [showLayerInfo, setShowLayerInfo] = useState(false)
-    const TOGGLE_PROPS = { handleSize: 12, barHeight: 16, barWidth: 32, barBackgroundColor: "#1ABC9C", barBackgroundColorActive: "#E74C3C" };
+    const TOGGLE_PROPS = { handleSize: 12, barHeight: 16, barWidth: 32, barBackgroundColor: "#2980B9", barBackgroundColorActive: "#E74C3C" };
 
     if (buildLayerNames.includes(layer.name) && !buildNote) return null
     if (!buildLayerNames.includes(layer.name) && buildNote) return null

@@ -60,7 +60,7 @@ div[class*="--Results"] {
     height: 100%;
     background-color: rgb(35 55 75);
     margin: 2.5px;
-    padding: 3px;
+    padding: 2.5px;
     border-radius: 5px;
     display: flex;
     flex-direction: column;
@@ -79,7 +79,6 @@ div[class*="--Results"] {
 
 .main-label > h3 {
     font-weight: 400;
-    /* color: rgb(255, 255, 255); */
     color:  rgb(252, 225, 115);
     font-size: 1.35em;
 }
@@ -89,9 +88,7 @@ div[class*="--Results"] {
     padding: 5px;
     background-color: rgb(46, 68, 89);
     border-radius: 1.5%;
-    /* border-top: 1.5px solid rgb(5, 13, 21); */
     border: 1.5px solid rgb(4, 40, 76);
-    /* border: 1.5px solid rgb(5, 13, 21); */
 }
 
 .map-layer-label {
@@ -182,8 +179,8 @@ input[type="color"] {
 }
 
 .property-detail-row .value {
-  word-break: break-word;            /* wrap long text */
-  overflow-wrap: break-word;         /* ensure wrapping */
+  word-break: break-word;            
+  overflow-wrap: break-word;        
 }
 
 .rolodex-items-container {
@@ -192,12 +189,12 @@ input[type="color"] {
 
 .rolodex-entry-container {
     display: grid;
-    grid-template-columns: 30% auto; /* 30% for labels, remaining for values */
+    grid-template-columns: 30% auto; 
     border: 0.5px solid rgba(255, 204, 0, 0.85);
     margin-bottom: 5px;
     padding: 10px 5px;
-    overflow-x: auto;        /* scroll whole entry */
-    white-space: nowrap;     /* prevent wrapping of content */
+    overflow-x: auto;       
+    white-space: nowrap;  
     gap: 5px;
     position: relative;
 }
@@ -234,8 +231,10 @@ input[type="color"] {
 
 .rolo-index {
     position: absolute;
-    top: 0.95;
-    right: 0;
+    top: 2.5%;
+    right: 1%;
+    padding: 2.5px;
     color: white;
-    font-size: 0.7em;
+    font-size: 0.8em;
+    border-radius: 40%;
 }

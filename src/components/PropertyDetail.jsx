@@ -1,17 +1,24 @@
-import { useState, memo } from "react";
+import { useState, useEffect, memo } from "react";
 import { ToggleSlider } from "react-toggle-slider";
 
 const PropertyDetail = ({ propertyDetail }) => {
     const [showDetailInfo, setShowDetailInfo] = useState(true)
-    	const TOGGLE_PROPS = { handleSize: 12, barHeight: 16, barWidth: 32, barBackgroundColor: "#1ABC9C", barBackgroundColorActive: "#E74C3C" };
+    	const TOGGLE_PROPS = { handleSize: 12, barHeight: 16, barWidth: 32, barBackgroundColor: "#2980B9", barBackgroundColorActive: "#E74C3C" };
 
+        
+    useEffect(() => {
+        if (propertyDetail) {
+            setShowDetailInfo(true);
+        }
+    }, [propertyDetail]);
+        
     if (!propertyDetail) return null;
 
     return (
         <div className="map-layers-container">
             <div className="map-layer-label" style={{ marginBottom: `${showDetailInfo ? "10px" : "0px"}` }}>
                 <h4 style={{ color: "rgb(255, 208, 0)"}}>Details:</h4>
-                <ToggleSlider {...TOGGLE_PROPS} onToggle={showDetailInfo => setShowDetailInfo(showDetailInfo)} />
+                <ToggleSlider {...TOGGLE_PROPS} active={showDetailInfo} key={showDetailInfo ? "on" : "off"}  onToggle={() => setShowDetailInfo(prev => !prev)} />
             </div>
 
             <div style={{ display: `${showDetailInfo ? "block" : "none"}` }}>

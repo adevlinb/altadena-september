@@ -42,7 +42,7 @@ export function addSourceAndLayers(mapRef, source, isBaseSource, user) {
 
 }
 
-export async function flyToAndSetProperty(res, mapRef, user, setPropertyDetail, setShowPropDetail) {
+export function flyToAndSetProperty(res, mapRef, setPropertyDetail, setShowPropDetail) {
     if (res?.features?.length) {
         const [lng, lat] = res.features[0].geometry.coordinates;
         mapRef.current.flyTo({ center: [lng, lat], zoom: 16 });
@@ -171,40 +171,6 @@ export function updateLayers(mapRef, layer, sublayer, action) {
     });
 }
 
-// export function updateMapLayers(mapRef, layer, sublayer, action) {
-
-//     switch (action) {
-//         case "opacity": {
-//             const property = `${layer.type}-opacity`;
-//             mapRef.current.setPaintProperty(sublayer.id, property, sublayer.paint[`${layer.type}-opacity`]);
-//             break;
-//         }
-
-//         case "color": {
-//             const property = `${layer.type}-color`;
-//             mapRef.current.setPaintProperty(sublayer.id, property, sublayer.paint[`${layer.type}-color`]);
-//             break;
-//         }
-
-//         case "visibility": {
-//             const visibility = mapRef.current.getLayoutProperty(sublayer.id, "visibility");
-//             const newSetting = visibility === "visible" ? "none" : "visible";
-//             mapRef.current.setLayoutProperty(sublayer.id, 'visibility', newSetting);
-//             break;
-//         }
-
-//         default:
-//             console.warn(`Unknown action: "${action}"`);
-//             break;
-
-//     }
-
-//     [sublayer?.id ,...layerOrder].forEach(layer => {
-//         if (layer && mapRef.current.getLayer(layer)) mapRef.current.moveLayer(layer);
-//     })
-// }
-
-
 export function updatePropertyLayers(mapRef, layer, sublayer, action) {
 
     switch (action) {
@@ -228,12 +194,10 @@ export function updatePropertyLayers(mapRef, layer, sublayer, action) {
         }
 
         case "distance-circles": {
-
             break;
         }
         
         case "center-point": {
-
             break; 
         }
 
