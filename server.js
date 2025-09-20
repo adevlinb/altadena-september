@@ -20,6 +20,7 @@ app.use("/map", express.static(path.join(__dirname, "map"), {
     res.setHeader("Cache-Control", "no-store");
   }
 }));
+
 app.put("/buildNote", checkApiKey, updateMap)
 
 // CATCH ALL ROUTE => `index.html`
