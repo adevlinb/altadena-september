@@ -33,8 +33,6 @@ export default function App({ user = {} }) {
 	const [masterSource,    setMasterSource   ] = useState(null);
 	const TOGGLE_PROPS = { handleSize: 12, barHeight: 16, barWidth: 32, barBackgroundColor: "#2980B9", barBackgroundColorActive: "#E74C3C" };
 
-	console.log(showPropDetail, "testing showing prop app 36")
-
 	useEffect(() => {
 		async function fetchSources() {
 			const [baseRes, masterRes] = await Promise.all([

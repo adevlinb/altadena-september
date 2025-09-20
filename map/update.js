@@ -235,8 +235,6 @@ export default async function updateMap(req, res) {
                 layer.binValues = Array.from(layer.binValues);
             } else if (layer.dataType === "range") {
 
-
-
                 const expanded = [];
                 for (const [value, count] of layer.binValues.entries()) {
                     for (let i = 0; i < count; i++) {
@@ -245,8 +243,7 @@ export default async function updateMap(req, res) {
                 }
 
                 // Deduplicate values, generate bins
-                const uniqueValues = Array.from(new Set(expanded));
-                uniqueValues.sort((a, b) => a - b);
+                const uniqueValues = sortBinValues(Array.from(new Set(expanded)));
                 const { bins, counts } = Layer.generateBins(uniqueValues);
                 layer.binValues = bins;   // the bin ranges: [[min, max], ...]
                 layer.binCount = counts; // number of items in each bin
@@ -269,8 +266,7 @@ export default async function updateMap(req, res) {
                 }
 
                 // Deduplicate values, generate bins
-                const uniqueValues = Array.from(new Set(expanded));
-                uniqueValues.sort((a, b) => a - b);
+                const uniqueValues = sortBinValues(Array.from(new Set(expanded)));
                 const { bins, counts } = Layer.generateBins(uniqueValues);
                 layer.binValues = bins;   // the bin ranges: [[min, max], ...]
                 layer.binCount = counts; // number of items in each bin
@@ -295,8 +291,7 @@ export default async function updateMap(req, res) {
                 }
 
                 // Deduplicate values, generate bins
-                const uniqueValues = Array.from(new Set(expanded));
-                uniqueValues.sort((a, b) => a - b);
+                const uniqueValues = sortBinValues(Array.from(new Set(expanded)));
                 const { bins, counts } = Layer.generateBins(uniqueValues);
                 layer.binValues = bins;   // the bin ranges: [[min, max], ...]
                 layer.binCount = counts; // number of items in each bin
@@ -487,5 +482,22 @@ function normalizeName(name) {
         .replace(/\b\w/g, char => char.toUpperCase()); // capitalize first letter of each word
 }
 
+function sortBinValues(values) {
+    // Deduplicate first
+    const uniqueValues = Array.from(new Set(values));
 
+    // Sort with numeric-first, string fallback
+    uniqueValues.sort((a, b) => {
+        const numA = parseFloat(a);
+        const numB = parseFloat(b);
 
+        if (!isNaN(numA) && !isNaN(numB)) {
+            return numA - numB; // numeric comparison
+        }
+
+        // fallback to string comparison
+        return String(a).localeCompare(String(b));
+    });
+
+    return uniqueValues;
+}
