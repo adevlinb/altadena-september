@@ -36,8 +36,8 @@ export default function App({ user = {} }) {
 	useEffect(() => {
 		async function fetchSources() {
 			const [baseRes, masterRes] = await Promise.all([
-				fetch("http://localhost:3001/map/base_source/base-source.json").then(r => r.json()),
-				fetch("http://localhost:3001/map/master_source/master-source.json").then(r => r.json()),
+				fetch("/map/base_source/base-source.json").then(r => r.json()),
+				fetch("/map/master_source/master-source.json").then(r => r.json()),
 			]);
 
 			setBaseSource(baseRes);
