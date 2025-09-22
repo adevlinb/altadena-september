@@ -9,7 +9,7 @@ export async function awsCopy(sourceKey, destKey) {
             CopySource: `${S3_BUCKET}/${sourceKey}`,
             Key: destKey,
         };
-
+        
         await s3Client.send(new CopyObjectCommand(copyParams));
         console.log(`Copied ${sourceKey} → ${destKey}`);
     } catch (err) {
@@ -35,6 +35,9 @@ export async function awsGet(fileName) {
 }
 
 export async function awsPut(fileName, fileData) {
+const { S3_REGION, S3_BUCKET } = process.env;
+const s3Client = new S3Client({ region: S3_REGION });
+
     try {
         const s3Params = {
             Bucket: S3_BUCKET,

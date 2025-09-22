@@ -2,14 +2,15 @@
 // This seed file is only meant to be run ONCE to initiate the starting point for map related items. 
 // It only needs to be run IF something happens to all of the other files!!!
 /***************************************************/
-
+// import dotenv from 'dotenv'; => development only
+// dotenv.config({ path: path.resolve(process.cwd(), '../.env') });
 // IMPORTS
 import fs from 'fs/promises';
 import path from 'path';
 import * as turf from '@turf/turf';
 import { FeatureCollection, BaseCollectionFeature, MasterCollectionFeature, MasterIndex, MasterIndexFeature, History, HistoryEntry } from '../map/map.js';
-import { diffLayers, diffFeatureProperties, finalizeLayers, processParcelLayers, localWrite, BASE_FILE_NAMES } from '../map/utility.js';
-
+import { diffLayers, diffFeatureProperties, finalizeLayers, processParcelLayers, localWrite, BASE_FILE_NAMES, BACKUP_FILE_NAMES } from '../map/utility.js';
+import { awsPut } from '../amazon/amazon.js';
 import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -23,7 +24,6 @@ const dataFiles = [
 	'altadena_3.json', 
 	'altadena_4.json' 
 ];
-
 
 const normalizeParcelData = (p) => ({
 	type:             p.geometry.type,
@@ -54,7 +54,6 @@ const normalizeParcelData = (p) => ({
 	damage:           p.properties.DAMAGE_1,
 	globalID:         p.properties.GlobalID,
 })
-
 
 function setUnitInfo(p) {
     const units = [];
@@ -175,13 +174,15 @@ export async function initializeMapData() {
 		await Promise.all(BASE_FILE_NAMES.map((fileName, index) => localWrite(NEW_FILES_DATA[index], fileName)));
 		console.log("✅ Local seed files written successfully.");
 
-		// // UPLOAD BASE FILES TO S3
+		// UPLOAD BASE FILES TO S3
 		// await Promise.all(BASE_FILE_NAMES.map((fileName, index) => awsPut(NEW_FILES_DATA[index], fileName)));
-		// console.log("✅ AWS_S3 BASE files written successfully.");
+		await Promise.all(BASE_FILE_NAMES.map((fileName, index) => awsPut(fileName, NEW_FILES_DATA[index])));
+		console.log("✅ AWS_S3 BASE files written successfully.");
 
-		// // UPLOAD BACKUP FILES TO S3
+		// UPLOAD BACKUP FILES TO S3
 		// await Promise.all(BACKUP_FILE_NAMES.map((fileName, index) => awsPut(NEW_FILES_DATA[index], fileName)));
-		// console.log("✅ AWS_S3 BACKUP files written successfully.");
+		await Promise.all(BACKUP_FILE_NAMES.map((fileName, index) => awsPut(fileName, NEW_FILES_DATA[index])));
+		console.log("✅ AWS_S3 BACKUP files written successfully.");
 
 	} catch (err) {
 		console.error('❌ Error during seeding:', err);

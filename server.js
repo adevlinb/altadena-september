@@ -3,7 +3,7 @@ import express from "express";
 import * as path from "path";
 import logger from "morgan";
 import cors from "cors";
-import 'dotenv/config'
+import * as dotenv from "dotenv";
 import { checkApiKey } from "./config/checkKey.js";
 import { getMapFiles, shutdownRedis } from "./redis/redis.js";
 import updateMap from "./map/update.js";
@@ -11,6 +11,7 @@ import updateMap from "./map/update.js";
 // CONFIG
 const app = express();
 app.use(cors())
+dotenv.config();
 app.use(logger('dev'));
 app.use(express.json());
 const __dirname = path.resolve();

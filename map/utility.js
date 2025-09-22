@@ -37,7 +37,8 @@ export async function localWrite(data, fileName) {
         const dir = FILE_LOOKUP[fileName];
         if (!dir) throw new Error(`Unknown local file requested: ${fileName}`);
         const filePath = path.join(dir, fileName);
-		const json = JSON.stringify(data, null, 1);
+		// const json = JSON.stringify(data, null, 1); // development => line spacing set to 1
+		const json = JSON.stringify(data); // production => no spacing
 		await fs.writeFile(filePath,  json, 'utf8');
 	} catch (err) {
 		console.error(err, `${fileName} not successfully written to ${dir}`)
