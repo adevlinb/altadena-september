@@ -45,7 +45,7 @@ export default function App({ user = {} }) {
 	}, []);
 
 	useEffect(() => {
-		if (!baseSource || !masterSource) return; 
+		if (!baseSource || !masterSource) return;
 
 		mapboxgl.accessToken = MAP_TOKEN;
 		mapRef.current = new mapboxgl.Map({
@@ -96,6 +96,15 @@ export default function App({ user = {} }) {
 		setMapLayers(updatedMapLayers);
 		mapboxFuncs.updateLayers(mapRef, layer, formulaUpdate, action);
 	}
+
+	if (!baseSource || !masterSource) 
+	
+	return (<div id="loading">
+		<h1>Altadena Collective</h1>
+		<h2>Firemap</h2>
+		<div>Map is loading - please contact admin if experiencing issues.</div>
+		<img src="https://media.tenor.com/hQz0Kl373E8AAAAm/loading-waiting.webp" alt="loading gif" />
+	</div>)
 
 
 	return (

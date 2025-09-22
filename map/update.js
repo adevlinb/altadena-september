@@ -37,15 +37,15 @@ export default async function updateMap(req, res) {
     await backupCurrFiles(data);
 
     // 0.3 CREATE NEW FILES
-    const NEW_BASE_SOURCE_COLLECTION = new FeatureCollection('base-source');
-    const NEW_MASTER_SOURCE_COLLECTION = new FeatureCollection('master-source');
+    const NEW_BASE_SOURCE   = new FeatureCollection('base-source');
+    const NEW_MASTER_SOURCE = new FeatureCollection('master-source');
     const NEW_MASTER_INDEX  = new MasterIndex('master-index');
     const NEW_HISTORY_ENTRY = new History(CURR_MASTER_INDEX.id, CURR_BASE_SOURCE.id, CURR_MASTER_SOURCE.id)
 
     // 0.4 CREATE NEW LAYERS + ROLODEX
-    const NEW_BASE_SOURCE_LAYERS = FeatureCollection.getBaseLayers();
-    const NEW_MASTER_SOURCE_LAYERS = FeatureCollection.getMasterLayers();
-    const NEW_BUILD_NOTE_LAYERS = FeatureCollection.getBuildNoteLayers();
+    const NEW_BASE_LAYERS   = FeatureCollection.getBaseLayers();
+    const NEW_MASTER_LAYERS = FeatureCollection.getMasterLayers();
+    const NEW_BUILD_LAYERS  = FeatureCollection.getBuildNoteLayers();
     const ROLODEX = {}
 
     try {
@@ -65,9 +65,9 @@ export default async function updateMap(req, res) {
         });
 
         // 1.2 TRACK DIFFERENCES IN LAYERS (Base, Master, BuildNote)
-        const [removedBaseLayers,      addedBaseLayers]      = diffLayers(CURR_BASE_SOURCE.layers,        NEW_BASE_SOURCE_LAYERS)
-        const [removedMasterLayers,    addedMasterLayers]    = diffLayers(CURR_MASTER_SOURCE.layers,      NEW_MASTER_SOURCE_LAYERS);
-        const [removedBuildNoteLayers, addedBuildNoteLayers] = diffLayers(CURR_MASTER_SOURCE.buildLayers, NEW_BUILD_NOTE_LAYERS);
+        const [removedBaseLayers,      addedBaseLayers]      = diffLayers(CURR_BASE_SOURCE.layers,        NEW_BASE_LAYERS)
+        const [removedMasterLayers,    addedMasterLayers]    = diffLayers(CURR_MASTER_SOURCE.layers,      NEW_MASTER_LAYERS);
+        const [removedBuildNoteLayers, addedBuildNoteLayers] = diffLayers(CURR_MASTER_SOURCE.buildLayers, NEW_BUILD_LAYERS);
         
 
         historyEntry.layerChanges.push(...[
@@ -116,19 +116,19 @@ export default async function updateMap(req, res) {
 
             // 3.1 BASE-FEATURES
             const newBaseFeature = new BaseCollectionFeature(parcel);
-            NEW_BASE_SOURCE_COLLECTION.features.push(newBaseFeature);
+            NEW_BASE_SOURCE.features.push(newBaseFeature);
             // 3.1 MASTER-FEATURES
             const newMasterFeature = new MasterCollectionFeature(parcel);
-            NEW_MASTER_SOURCE_COLLECTION.features.push(newMasterFeature)
+            NEW_MASTER_SOURCE.features.push(newMasterFeature)
             // 3.4 MASTER-INDEX-FEATURES
             const newIndexFeature = new MasterIndexFeature(parcel)
             NEW_MASTER_INDEX.features[parcel.parcelNum] = newIndexFeature;
             NEW_MASTER_INDEX.length += 1;
 
             // 3.2 SET BIN VALUES
-            processParcelLayers(parcel, NEW_BASE_SOURCE_LAYERS, ["parcels", "outline"]);
-            processParcelLayers(parcel, NEW_MASTER_SOURCE_LAYERS);
-            processParcelLayers(parcel, NEW_BUILD_NOTE_LAYERS);
+            processParcelLayers(parcel, NEW_BASE_LAYERS, ["parcels", "outline"]);
+            processParcelLayers(parcel, NEW_MASTER_LAYERS);
+            processParcelLayers(parcel, NEW_BUILD_LAYERS);
 
             // 3.3 GENERATE ROLODEX
             // List of roles and their respective columns in the parcel
@@ -167,29 +167,30 @@ export default async function updateMap(req, res) {
         finalizeLayers(BUILD_NOTE_LAYERS);
 
         // 4.4 ASSIGN LAYERS, ROLODEX
-        NEW_BASE_SOURCE_COLLECTION.layers        = NEW_BASE_SOURCE_LAYERS;
-        NEW_MASTER_SOURCE_COLLECTION.layers      = NEW_MASTER_SOURCE_LAYERS;
-        NEW_MASTER_SOURCE_COLLECTION.buildLayers = NEW_BUILD_NOTE_LAYERS;
-        NEW_MASTER_SOURCE_COLLECTION.rolodex     = Object.values(ROLODEX);
+        NEW_BASE_SOURCE.layers        = NEW_BASE_LAYERS;
+        NEW_MASTER_SOURCE.layers      = NEW_MASTER_LAYERS;
+        NEW_MASTER_SOURCE.buildLayers = NEW_BUILD_LAYERS;
+        NEW_MASTER_SOURCE.rolodex     = Object.values(ROLODEX);
 
         // 4.5 SET MASTER-INDEX LAYERS, ROLODEX
         NEW_MASTER_INDEX.rolodex      = Object.values(ROLODEX);
-        NEW_MASTER_INDEX.baseLayers   = NEW_BASE_SOURCE_LAYERS;
-        NEW_MASTER_INDEX.masterLayers = NEW_MASTER_SOURCE_LAYERS;
-        NEW_MASTER_INDEX.buildLayers  = NEW_BUILD_NOTE_LAYERS;
+        NEW_MASTER_INDEX.baseLayers   = NEW_BASE_LAYERS;
+        NEW_MASTER_INDEX.masterLayers = NEW_MASTER_LAYERS;
+        NEW_MASTER_INDEX.buildLayers  = NEW_BUILD_LAYERS;
 
         // 5.0 => WRITE NEW FILES
         const NEW_FILES_DATA = [
-            NEW_BASE_SOURCE_COLLECTION,
-            NEW_MASTER_SOURCE_COLLECTION,
+            NEW_BASE_SOURCE,
+            NEW_MASTER_SOURCE,
             NEW_MASTER_INDEX,
             NEW_HISTORY_ENTRY,
         ];
 
+        // AWS S3 UPDATE CURRENT FILES
         await Promise.all(CURR_FILES.map((fileName, index) => awsPut(fileName, NEW_FILES_DATA[index])));
 
-        // UPDATE REDIS
-        return { baseSrc: NEW_BASE_SOURCE_COLLECTION, masterSrc: NEW_MASTER_SOURCE_COLLECTION }
+        // UPDATE REDIS / LOCAL CACHE
+        return { baseSrc: NEW_BASE_SOURCE, masterSrc: NEW_MASTER_SOURCE }
 
     } catch (err) {
         console.warn(err)
