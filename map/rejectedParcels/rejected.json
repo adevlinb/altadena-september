@@ -1,0 +1,80 @@
+[
+ {
+  "type": "Polygon",
+  "coordinates": [
+   [
+    [
+     -118.606850246394,
+     34.0379095868009
+    ],
+    [
+     -118.606981001843,
+     34.0378430186254
+    ],
+    [
+     -118.607023242623,
+     34.0378900417174
+    ],
+    [
+     -118.607134773521,
+     34.0380141977162
+    ],
+    [
+     -118.607045312426,
+     34.0380674896806
+    ],
+    [
+     -118.606999684279,
+     34.0380931921776
+    ],
+    [
+     -118.606893742221,
+     34.0379630262235
+    ],
+    [
+     -118.606868982358,
+     34.0379326054921
+    ],
+    [
+     -118.606850246394,
+     34.0379095868009
+    ]
+   ]
+  ],
+  "assessorNum": "4449008008",
+  "parcelNum": null,
+  "centroid": [
+   -118.60697462320813,
+   34.037964144804214
+  ],
+  "houseNum": "19824",
+  "street": "PACIFIC COAST HWY",
+  "address": "19824 PACIFIC COAST HWY",
+  "cityState": "MALIBU CA",
+  "zipCode": "90265",
+  "fullAddress": "19824 PACIFIC COAST HWY MALIBU CA 90265",
+  "community": "",
+  "propertyType": "Residential",
+  "structureCat": "Single Family Residence",
+  "yearBuilt": "1948",
+  "taxRateArea": "10851",
+  "taxRateCity": "MALIBU",
+  "lotSizeMeters": 355.32,
+  "lotSizeAcres": 0.088,
+  "lastSaleDate": "20220818",
+  "lastSaleAmt": 9,
+  "legalDescription": "TRACT # 24026 LOT   46",
+  "totalUnits": 1,
+  "units": [
+   {
+    "unitNum": 1,
+    "bedrooms": 3,
+    "bathrooms": 3,
+    "sqft": 2660
+   }
+  ],
+  "fireName": "Palisades",
+  "damage": "No Damage",
+  "globalID": "eda90adf-3af4-4a7a-813e-3f2d9805736d"
+ }
+]

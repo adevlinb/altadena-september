@@ -11,56 +11,42 @@
 // NOTE => THE SYSTEM CANNOT ACCEPT FILES THAT ARE NOT PART OF THE ORIGINAL DATASET 
 // UNLESS A USER PROVIDES THE COORDINATES NEEDED TO DISPLAY THE INFORMATION ON THE MAP (which is highly unlikely)
 
-import * as fs from 'fs/promises';
-import path from 'path';
-
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-import { FeatureCollection, BaseCollectionFeature, MasterCollectionFeature, MasterIndex, MasterIndexFeature, Layer, History, HistoryEntry } from "./map.js";
-
-// BACKUP DIRECTORIES
-const baseSrcBackupDir   = path.resolve(__dirname, "../map/base_source");
-const masterSrcBackupDir = path.resolve(__dirname, "../map/master_source");
-const masterIdxBackupDir = path.resolve(__dirname, "../map/master_index");
-const historyDir         = path.resolve(__dirname, "../map/history");
-
-let mapSourceProdDir;
+import { awsCopy, awsGet, awsPut } from '../amazon/amazon.js';
+import { diffLayers, diffFeatureProperties, normalizeName, finalizeLayers, processParcelLayers, mergeParcelProperties, localGet, BASE_FILE_NAMES, BACKUP_FILE_NAMES } from './utility.js';
+import { FeatureCollection, BaseCollectionFeature, MasterCollectionFeature, MasterIndex, MasterIndexFeature, History, HistoryEntry } from "./map.js";
 
 export default async function updateMap(req, res) {
 
-
-    const updates = req.body;       // rows to udpate (overwrites each time!!)
-    const type    = req.query.type; // googleSheet for now (may be used later to run code based on type)
-    res.status(200).end();          // return response to settle incoming request
-
-    if (updates.length === 0) return;
+    const updates = req.body;         // rows to udpate (overwrites each time!!)
+    const type    = req.query.type;   // googleSheet for now (may be used later to run code based on type)
+    res.status(200).end();            // return response to settle incoming request
+    if (updates.length === 0) return; // return if nothing to update
 
     // 0.0 SET CONSTANTS / GLOBAL VARS
-    // MASTER INDEX
-    const CURR_MASTER_INDEX = await loadAndBackupJson(masterIdxBackupDir, 'master-index.json');
-    const NEW_MASTER_INDEX  = new MasterIndex('master-index');
-    
-    // BASE SOURCE
-    const CURR_BASE_SOURCE = await loadAndBackupJson(baseSrcBackupDir, 'base-source.json');
+    // 0.1  LOAD CURRENT FILES
+    const { successfulLoad, data, source } = await loadCurrFiles();
+
+    if (!successfulLoad || !data) {
+        console.error("Failed to load files, aborting update.");
+        return;
+    }
+
+    const [CURR_BASE_SOURCE, CURR_MASTER_SOURCE, CURR_MASTER_INDEX, CURRENT_HISTORY] = data;
+
+    // 0.2 WRITE BACKUPS
+    await backupCurrFiles(data);
+
+    // 0.3 CREATE NEW FILES
     const NEW_BASE_SOURCE_COLLECTION = new FeatureCollection('base-source');
-    const NEW_BASE_SOURCE_LAYERS = FeatureCollection.getBaseLayers();
-    
-    // MASTER SOURCE
-    const CURR_MASTER_SOURCE = await loadAndBackupJson(masterSrcBackupDir, 'master-source.json');
     const NEW_MASTER_SOURCE_COLLECTION = new FeatureCollection('master-source');
+    const NEW_MASTER_INDEX  = new MasterIndex('master-index');
+    const NEW_HISTORY_ENTRY = new History(CURR_MASTER_INDEX.id, CURR_BASE_SOURCE.id, CURR_MASTER_SOURCE.id)
+
+    // 0.4 CREATE NEW LAYERS + ROLODEX
+    const NEW_BASE_SOURCE_LAYERS = FeatureCollection.getBaseLayers();
     const NEW_MASTER_SOURCE_LAYERS = FeatureCollection.getMasterLayers();
-    
-    // BUILD NOTE LAYERS
     const NEW_BUILD_NOTE_LAYERS = FeatureCollection.getBuildNoteLayers();
-
-    // ROLODEX OF PARTNERS
     const ROLODEX = {}
-
-    // HISTORY ENTRY:
-    const historyEntry = new History(CURR_MASTER_INDEX.id, CURR_BASE_SOURCE.id, CURR_MASTER_SOURCE.id)
 
     try {
         // 1.0 => PARSE, VERIFY DATA TO UPDATE (PROPERTY OR LAYER CHANGES!)
@@ -128,68 +114,21 @@ export default async function updateMap(req, res) {
         // 3.0 GENERATE NEW SOURCE FEATURES, LAYER VALUES, ROLODEX OF PARTNERS
         for (const [key, parcel] of Object.entries(CURR_MASTER_INDEX.features)) {
 
-            // 3.1 GENERATE BASE COLLECTION FEATURES / LAYER BIN VALUES
+            // 3.1 BASE-FEATURES
             const newBaseFeature = new BaseCollectionFeature(parcel);
             NEW_BASE_SOURCE_COLLECTION.features.push(newBaseFeature);
-
-            for (const layer of NEW_BASE_SOURCE_LAYERS) {
-                const value = parcel[layer.key];
-
-                // skip two core layers => parcels and outline
-                if (["parcels", "outline"].includes(layer.key)) {
-                    layer.binCount[layer.key] = (layer.binCount[layer.key] || 0) + 1;
-                    continue;
-                }
-
-                if (isValidValue(value)) {
-                    if (layer.dataType === "category") {
-                        layer.binValues.add(value);
-                        layer.binCount[value] = (layer.binCount[value] || 0) + 1;
-                    }
-
-                    if (layer.dataType === "range") {
-                        const current = layer.binValues.get(value) || 0;
-                        layer.binValues.set(value, current + 1);
-                    }
-                }
-            }
-
-            // 3.1 GENERATE MASTER COLLECTION FEATURE / LAYER BIN VALUES
+            // 3.1 MASTER-FEATURES
             const newMasterFeature = new MasterCollectionFeature(parcel);
             NEW_MASTER_SOURCE_COLLECTION.features.push(newMasterFeature)
+            // 3.4 MASTER-INDEX-FEATURES
+            const newIndexFeature = new MasterIndexFeature(parcel)
+            NEW_MASTER_INDEX.features[parcel.parcelNum] = newIndexFeature;
+            NEW_MASTER_INDEX.length += 1;
 
-            for (const layer of NEW_MASTER_SOURCE_LAYERS) {
-                const value = parcel[layer.key];
-
-                if (isValidValue(value)) {
-                    if (layer.dataType === "category") {
-                        layer.binValues.add(value);
-                        layer.binCount[value] = (layer.binCount[value] || 0) + 1;
-                    }
-
-                    if (layer.dataType === "range") {
-                        const current = layer.binValues.get(value) || 0;
-                        layer.binValues.set(value, current + 1);
-                    }
-                }
-            }
-
-            // 3.2 GENERATE BUILD NOTE LAYER BIN VALUES
-            for (const layer of NEW_BUILD_NOTE_LAYERS) {
-                const value = parcel[layer.key];
-
-                if (isValidValue(value)) {
-                    if (layer.dataType === "category") {
-                        layer.binValues.add(value);
-                        layer.binCount[value] = (layer.binCount[value] || 0) + 1;
-                    }
-
-                    if (layer.dataType === "range") {
-                        const current = layer.binValues.get(value) || 0;
-                        layer.binValues.set(value, current + 1);
-                    }
-                }
-            }
+            // 3.2 SET BIN VALUES
+            processParcelLayers(parcel, NEW_BASE_SOURCE_LAYERS, ["parcels", "outline"]);
+            processParcelLayers(parcel, NEW_MASTER_SOURCE_LAYERS);
+            processParcelLayers(parcel, NEW_BUILD_NOTE_LAYERS);
 
             // 3.3 GENERATE ROLODEX
             // List of roles and their respective columns in the parcel
@@ -220,284 +159,84 @@ export default async function updateMap(req, res) {
                     if (!partner.roles.includes(role)) partner.roles.push(role);
                 }
             });
-
-            // 3.4 GENERATE MASTER INDEX FEATURE
-            const newIndexFeature = new MasterIndexFeature(parcel)
-            NEW_MASTER_INDEX.features[parcel.parcelNum] = newIndexFeature;
-            NEW_MASTER_INDEX.length += 1;
-
         }
 
-        // 4.0 SET LAYER FORMULAS 
-        // 4.1 GENERATE BASE SOURCE LAYER FORMULAS
-        for (const layer of NEW_BASE_SOURCE_LAYERS) {
-            if (layer.dataType === "category") {
-                layer.binValues = Array.from(layer.binValues);
-            } else if (layer.dataType === "range") {
+        // 4.0 GENERATE LAYER FORMULAS 
+        finalizeLayers(BASE_SOURCE_LAYERS);
+        finalizeLayers(MASTER_SOURCE_LAYERS);
+        finalizeLayers(BUILD_NOTE_LAYERS);
 
-                const expanded = [];
-                for (const [value, count] of layer.binValues.entries()) {
-                    for (let i = 0; i < count; i++) {
-                        expanded.push(value);
-                    }
-                }
-
-                // Deduplicate values, generate bins
-                const uniqueValues = sortBinValues(Array.from(new Set(expanded)));
-                const { bins, counts } = Layer.generateBins(uniqueValues);
-                layer.binValues = bins;   // the bin ranges: [[min, max], ...]
-                layer.binCount = counts; // number of items in each bin
-            }
-
-            layer.formulas = Layer.buildLayerFormulas(layer);
-        }
-
-        // 4.2 GENERATE MASTER SOURCE LAYER FORMULAS
-        for (const layer of NEW_MASTER_SOURCE_LAYERS) {
-            if (layer.dataType === "category") {
-                layer.binValues = Array.from(layer.binValues);
-            } else if (layer.dataType === "range") {
-
-                const expanded = [];
-                for (const [value, count] of layer.binValues.entries()) {
-                    for (let i = 0; i < count; i++) {
-                        expanded.push(value);
-                    }
-                }
-
-                // Deduplicate values, generate bins
-                const uniqueValues = sortBinValues(Array.from(new Set(expanded)));
-                const { bins, counts } = Layer.generateBins(uniqueValues);
-                layer.binValues = bins;   // the bin ranges: [[min, max], ...]
-                layer.binCount = counts; // number of items in each bin
-            }
-
-            layer.formulas = Layer.buildLayerFormulas(layer);
-        }
-
-        // 4.3 GENERATE BUILD NOTE LAYER FORMULAS (master-source)
-        for (const layer of NEW_BUILD_NOTE_LAYERS) {
-            if (layer.dataType === "category") {
-                layer.binValues = Array.from(layer.binValues);
-            }
-            
-            if (layer.dataType === "range") {
-
-                const expanded = [];
-                for (const [value, count] of layer.binValues.entries()) {
-                    for (let i = 0; i < count; i++) {
-                        expanded.push(value);
-                    }
-                }
-
-                // Deduplicate values, generate bins
-                const uniqueValues = sortBinValues(Array.from(new Set(expanded)));
-                const { bins, counts } = Layer.generateBins(uniqueValues);
-                layer.binValues = bins;   // the bin ranges: [[min, max], ...]
-                layer.binCount = counts; // number of items in each bin
-            }
-
-            layer.formulas = Layer.buildLayerFormulas(layer);
-        }
-
-        // 4.4 ASSIGN NEW LAYERS and ROLODEX
+        // 4.4 ASSIGN LAYERS, ROLODEX
         NEW_BASE_SOURCE_COLLECTION.layers        = NEW_BASE_SOURCE_LAYERS;
         NEW_MASTER_SOURCE_COLLECTION.layers      = NEW_MASTER_SOURCE_LAYERS;
         NEW_MASTER_SOURCE_COLLECTION.buildLayers = NEW_BUILD_NOTE_LAYERS;
         NEW_MASTER_SOURCE_COLLECTION.rolodex     = Object.values(ROLODEX);
 
-        // 4.5 SET MASTER INDEX LAYERS (x3) and ROLODEX
+        // 4.5 SET MASTER-INDEX LAYERS, ROLODEX
         NEW_MASTER_INDEX.rolodex      = Object.values(ROLODEX);
         NEW_MASTER_INDEX.baseLayers   = NEW_BASE_SOURCE_LAYERS;
         NEW_MASTER_INDEX.masterLayers = NEW_MASTER_SOURCE_LAYERS;
         NEW_MASTER_INDEX.buildLayers  = NEW_BUILD_NOTE_LAYERS;
 
-        // // 5.0 => WRITE NEW FILES
-        await writeJsonFile(NEW_MASTER_INDEX,             masterIdxBackupDir, 'master-index.json');
-        await writeJsonFile(NEW_MASTER_SOURCE_COLLECTION, masterSrcBackupDir, 'master-source.json');
-        await writeJsonFile(NEW_BASE_SOURCE_COLLECTION,   baseSrcBackupDir,   'base-source.json');
-
-        // 6.0 => APPEND HISTORY ENTRY
-        try {
-            await appendJsonLine(historyEntry, historyDir, 'history.jsonl');
-        } catch (logErr) {
-            console.warn("Failed to write history log:", logErr.message);
-        }
-
-    } catch (err) {
-        console.warn("Error during updateIndexAndAssets:", err);
-
-        const requiredFiles = [
-            { name: 'master-index.json',  paths: [masterIdxBackupDir, masterIdxBackupDir] },
-            { name: 'master-source.json', paths: [masterSrcBackupDir, masterSrcBackupDir] },
-            { name: 'base-source.json',   paths: [baseSrcBackupDir,   baseSrcBackupDir]   },
+        // 5.0 => WRITE NEW FILES
+        const NEW_FILES_DATA = [
+            NEW_BASE_SOURCE_COLLECTION,
+            NEW_MASTER_SOURCE_COLLECTION,
+            NEW_MASTER_INDEX,
+            NEW_HISTORY_ENTRY,
         ];
 
-        const missingFileRecords = [];
+        await Promise.all(CURR_FILES.map((fileName, index) => awsPut(fileName, NEW_FILES_DATA[index])));
 
-        for (const { name, paths } of requiredFiles) {
-            const fileExistsInAny = await Promise.all(paths.map(async dir => {
-                try {
-                    await fs.access(path.join(dir, name));
-                    return true;
-                } catch {
-                    return false;
-                }
-            }));
+        // UPDATE REDIS
+        return { baseSrc: NEW_BASE_SOURCE_COLLECTION, masterSrc: NEW_MASTER_SOURCE_COLLECTION }
 
-            if (!fileExistsInAny.includes(true)) {
-                missingFileRecords.push({ file: name, checkedPaths: paths });
+    } catch (err) {
+        console.warn(err)
+    }
+}
+
+async function loadCurrFiles() {
+    const sources = [
+        { name: "primary", files: CURR_FILES,   loader: awsGet },
+        { name: "backup",  files: BACKUP_FILES, loader: awsGet },
+        { name: "redis",   loader: redisGetFiles },     // FIX REDIS!!
+        { name: "local",   files: CURR_FILES,   loader: localGet },  // write local get function!
+    ];
+
+    for (const source of sources) {
+        try {
+            let data;
+            if (source.files) {
+                data = await Promise.all(source.files.map(file => source.loader(file)));
+            } else {
+                data = await source.loader(); // e.g., Redis might return all at once
             }
-        }
-
-        const error = { message: err.message, stack: err.stack };
-        const fallbackCheck = { missingFiles: missingFileRecords };
-        const failureEntry = new HistoryEntry({ name: "FAIL", type: "FAILURE IN UPDATE PROCESS", action: "LOG FAILURE, ENSURE BACKUPS", item: { error, fallbackCheck } });
-        historyEntry.failure.push(failureEntry);
-
-        try {
-            await appendJsonLine(historyEntry, historyDir, 'history.jsonl');
-            console.log("Fallback error log written.");
-        } catch (logErr) {
-            console.warn("Failed to write fallback history log:", logErr.message);
-        }
-    }
-}
-
-function diffLayers(oldLayers, newLayers) {
-    const oldKeySet = new Set(oldLayers.map(layer => layer.key));
-    const newKeySet = new Set(newLayers.map(layer => layer.key));
-
-    const added   = newLayers.filter(layer => !oldKeySet.has(layer.key));
-    const removed = oldLayers.filter(layer => !newKeySet.has(layer.key));
-
-    return [removed, added];
-}
-
-function diffFeatureProperties(oldFeature, newFeature) {
-    if (!oldFeature || !newFeature) return [[], []];
-
-    const oldProps = oldFeature.properties || {};
-    const newProps = newFeature.properties || {};
-
-    const oldKeys = new Set(Object.keys(oldProps));
-    const newKeys = new Set(Object.keys(newProps));
-
-    const removed = [...oldKeys].filter(key => !newKeys.has(key));
-    const added = [...newKeys].filter(key => !oldKeys.has(key));
-
-    return [removed, added];
-}
-
-async function writeJsonFile(data, dir, filename) {
-    try {
-        await fs.mkdir(dir, { recursive: true }); // ensure directory exists
-        const fullPath = path.join(dir, filename);
-        await fs.writeFile(fullPath, JSON.stringify(data, null, 2), 'utf8');
-    } catch (err) {
-        console.error("❌ writeJsonFile error:", err.message, err.stack);
-    }
-}
-
-async function appendJsonLine(data, dir, filename) {
-    try {
-        const fullPath = path.join(dir, filename);
-        const line = JSON.stringify(data) + "\n";
-        await fs.mkdir(dir, { recursive: true });
-        await fs.appendFile(fullPath, line);
-    } catch (err) {
-        console.log(err)
-    }
-}
-
-async function loadAndBackupJson(dir, filename, backupSuffix = '.backup.json') {
-    const currPath = path.join(dir, filename);
-    const backupPath = path.join(dir, filename.replace(/\.json$/, backupSuffix));
-
-    try {
-
-        console.log(`convert filename: ${filename} to dir: ${dir}`)
-
-        // 1. Try to load current file
-        const fileData = await fs.readFile(currPath, 'utf-8');
-        const jsonData = JSON.parse(fileData);
-
-        // 2. Delete old backup if it exists
-        try {
-            await fs.unlink(backupPath);
+            console.log(`Loaded files from ${source.name}`);
+            return { success: true, data, source: source.name };
         } catch (err) {
-            console.error(err)
-            if (err.code !== 'ENOENT') throw err;
+            console.warn(`Failed to load from ${source.name}:`, err);
         }
+    }
 
-        // 3. Rename current file to backup
-        console.log(currPath, backupPath, "line 444")
-        await fs.rename(currPath, backupPath);
+    console.error("All file loading attempts failed.");
+    return { successfulLoad: false, data: null, source: null };
+}
 
-        // 4. Return loaded data
-        return jsonData;
-
+export async function backupCurrFiles(currentData) {
+    try {
+        await Promise.all(CURR_FILES.map((file, i) => awsCopy(file, BACKUP_FILES[i])));
+        console.log("Backups copied successfully in S3");
+        return true;
     } catch (err) {
-        if (err.code === 'ENOENT') {
-            console.warn(`Primary file not found. Attempting to load backup: ${backupPath}`);
-            try {
-                const backupData = await fs.readFile(backupPath, 'utf-8');
-                return JSON.parse(backupData);
-            } catch (backupErr) {
-                console.error(`Backup file also missing or unreadable: ${backupPath}`);
-                throw backupErr;
-            }
-        } else {
-            console.error('Error in loadAndBackupJson:', err);
-            throw err;
+        console.warn("S3 copy failed, falling back to awsPut:", err);
+        try {
+            await Promise.all(CURR_FILES.map((file, i) => awsPut(BACKUP_FILES[i], currentData[i])));
+            console.log("Backups uploaded successfully via awsPut");
+            return true;
+        } catch (err2) {
+            console.error("Backup failed completely:", err2);
+            return false;
         }
     }
-}
-
-function mergeParcelProperties(oldProps = {}, newProps = {}) {
-    const merged = { ...oldProps }; // start with everything from oldProps
-
-    for (const [key, newVal] of Object.entries(newProps)) {
-        if (newVal) {                 // only update if truthy
-            merged[key] = newVal;
-        } else if (!(key in merged)) {
-            // if it’s a brand new key but falsy, decide if you want to keep it
-            merged[key] = newVal; // or skip this line if you *don’t* want to add falsy keys
-        }
-    }
-
-    return merged;
-}
-
-function isValidValue(val) {
-    return val !== undefined && val !== null && val !== '' && val !== false && val !== 0;
-}
-
-function normalizeName(name) {
-    if (!name) return null;
-    return name
-        .toLowerCase()
-        .trim()
-        .replace(/\s+/g, " ") // collapse multiple spaces
-        .replace(/\b\w/g, char => char.toUpperCase()); // capitalize first letter of each word
-}
-
-function sortBinValues(values) {
-    // Deduplicate first
-    const uniqueValues = Array.from(new Set(values));
-
-    // Sort with numeric-first, string fallback
-    uniqueValues.sort((a, b) => {
-        const numA = parseFloat(a);
-        const numB = parseFloat(b);
-
-        if (!isNaN(numA) && !isNaN(numB)) {
-            return numA - numB; // numeric comparison
-        }
-
-        // fallback to string comparison
-        return String(a).localeCompare(String(b));
-    });
-
-    return uniqueValues;
 }

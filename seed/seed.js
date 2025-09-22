@@ -7,8 +7,8 @@
 import fs from 'fs/promises';
 import path from 'path';
 import * as turf from '@turf/turf';
-import { FeatureCollection, BaseCollectionFeature, MasterCollectionFeature, MasterIndex, MasterIndexFeature, Layer, History, HistoryEntry } from '../map/map.js';
-
+import { FeatureCollection, BaseCollectionFeature, MasterCollectionFeature, MasterIndex, MasterIndexFeature, History, HistoryEntry } from '../map/map.js';
+import { diffLayers, diffFeatureProperties, finalizeLayers, processParcelLayers, localWrite, BASE_FILE_NAMES } from '../map/utility.js';
 
 import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
@@ -16,11 +16,6 @@ const __dirname = path.dirname(__filename);
 
 // FOLDER / FILE PATHS
 const originalDataDir  = path.resolve(__dirname, './original_geojson_data');
-const baseSrcDir       = path.resolve(__dirname, '../map/base_source');
-const masterSrcDir     = path.resolve(__dirname, '../map/master_source');
-const masterIdxDir     = path.resolve(__dirname, '../map/master_index');
-const rejectedItemsDir = path.resolve(__dirname, '../map/rejectedParcels');
-const historyDir       = path.resolve(__dirname, '../map/history');
 
 const dataFiles = [
 	'altadena_1.json', 
@@ -92,14 +87,14 @@ export async function initializeMapData() {
 		);
 
 		const allGeoDataParcels        = originalGeojsonDataArrays.flat()
-		const rejectedParcels          = [];
-		const BASE_SOURCE_COLLECTION   = new FeatureCollection('base-source');
-		const BASE_SOURCE_LAYERS	   = FeatureCollection.getBaseLayers();
-		const MASTER_SOURCE_COLLECTION = new FeatureCollection('master-source');
-		const MASTER_SOURCE_LAYERS     = FeatureCollection.getMasterLayers();
+		const REJECTED                 = [];
+		const BASE_SOURCE              = new FeatureCollection('base-source');
+		const BASE_LAYERS	           = FeatureCollection.getBaseLayers();
+		const MASTER_SOURCE            = new FeatureCollection('master-source');
+		const MASTER_LAYERS            = FeatureCollection.getMasterLayers();
 		const BUILD_NOTE_LAYERS		   = FeatureCollection.getBuildNoteLayers();
 		const MASTER_INDEX             = new MasterIndex('master-index'); // HOLDS ALL DATA (GENERATED ONCE AND UPDATED => USED FOR ALL FUTURE FEATURE COLLECTIONS)
-    	const historyEntry             = new History(MASTER_INDEX.id, BASE_SOURCE_COLLECTION.id, MASTER_SOURCE_COLLECTION.id)
+    	const HISTORY_ENTRY            = new History(MASTER_INDEX.id, BASE_SOURCE.id, MASTER_SOURCE.id)
 		
 		// FORMAT, CALCULATE, STRUCTURE DATA AND LAYERS FOR BASE / MASTER SOURCES AND MASTER INDEX
 		allGeoDataParcels.forEach((p) => {
@@ -107,54 +102,20 @@ export async function initializeMapData() {
 
 			// ONLY REJECTS ITEMS WITH MISSING PARCEL NUMBER
 			if (!parcel.parcelNum) {
-				rejectedParcels.push(parcel);
+				REJECTED.push(parcel);
 			} else {
 	
 				// GENERATE BASE COLLECTION / FEATURES / LAYERS
 				const newBaseFeature = new BaseCollectionFeature(parcel);
-				BASE_SOURCE_COLLECTION.features.push(newBaseFeature);
+				BASE_SOURCE.features.push(newBaseFeature);
 	
-				for (const layer of BASE_SOURCE_LAYERS) {
-					const value = parcel[layer.key];
-
-					// skip two core layers => parcels and outline
-					if (["parcels", "outline"].includes(layer.key)) {
-						layer.binCount[layer.key] = (layer.binCount[layer.key] || 0) + 1;
-						continue;
-					}
-
-					if (isValidValue(value)) {
-						if (layer.dataType === "category") {
-							layer.binValues.add(value);
-							layer.binCount[value] = (layer.binCount[value] || 0) + 1;
-						}
-
-						if (layer.dataType === "range") {
-							const current = layer.binValues.get(value) || 0;
-							layer.binValues.set(value, current + 1);
-						}
-					}
-				}
+				processParcelLayers(parcel, BASE_LAYERS, ["parcels", "outline"]);
 				
 				// // GENERATE MASTER COLLECTION / FEATURES / LAYERS
 				const newMasterFeature = new MasterCollectionFeature(parcel);
-				MASTER_SOURCE_COLLECTION.features.push(newMasterFeature)
+				MASTER_SOURCE.features.push(newMasterFeature)
 	
-				for (const layer of MASTER_SOURCE_LAYERS) {
-					const value = parcel[layer.key];
-					
-					if (isValidValue(value)) {
-						if (layer.dataType === "category") {
-							layer.binValues.add(value);
-							layer.binCount[value] = (layer.binCount[value] || 0) + 1;
-						}
-
-						if (layer.dataType === "range") {
-							const current = layer.binValues.get(value) || 0;
-							layer.binValues.set(value, current + 1);
-						}
-					}
-				}
+				processParcelLayers(parcel, MASTER_LAYERS);
 				
 				// // GENERATE MASTER INDEX && FEATURES
 				const newIndexFeature = new MasterIndexFeature(parcel)
@@ -163,105 +124,28 @@ export async function initializeMapData() {
 			}
 		});
 
-		// SET LAYER FORMULAS FOR BASE COLLECTION
-		for (const layer of BASE_SOURCE_LAYERS) {
-			if (layer.dataType === "category") layer.binValues = Array.from(layer.binValues);
-			 
-			if (layer.dataType === "range") {
+		// GENERATE LAYER FORMULAS
+		// BASE
+		finalizeLayers(BASE_LAYERS);
+		BASE_SOURCE.layers        = BASE_LAYERS;
+        MASTER_INDEX.baseLayers   = BASE_LAYERS;
 
-				const expanded = [];
-				for (const [value, count] of layer.binValues.entries()) {
-					for (let i = 0; i < count; i++) {
-						expanded.push(value);
-					}
-				}
-				
-				expanded.sort((a, b) => a - b);
-				const { bins, counts } = Layer.generateBins(expanded);
-				layer.binValues = bins;   // the bin ranges: [[min, max], ...]
-				layer.binCount  = counts; // number of items in each bin
-			}
+		// MASTER
+		finalizeLayers(MASTER_LAYERS);
+		MASTER_SOURCE.layers      = MASTER_LAYERS;
+        MASTER_INDEX.masterLayers = MASTER_LAYERS;
 
-			layer.formulas = Layer.buildLayerFormulas(layer);
-		}
-
-		// ASSIGN GENERATED BASE SOURCE LAYERS
-		BASE_SOURCE_COLLECTION.layers = BASE_SOURCE_LAYERS;
-
-		// SET LAYER FORMULAS FOR MASTER COLLECTION
-		for (const layer of MASTER_SOURCE_LAYERS) {
-			if (layer.dataType === "category") layer.binValues = Array.from(layer.binValues);
-			
-			if (layer.dataType === "range") {
-
-				const expanded = [];
-				for (const [value, count] of layer.binValues.entries()) {
-					for (let i = 0; i < count; i++) {
-						expanded.push(value);
-					}
-				}
-				
-				expanded.sort((a, b) => a - b);
-				const { bins, counts } = Layer.generateBins(expanded);
-				layer.binValues = bins;   // the bin ranges: [[min, max], ...]
-				layer.binCount  = counts; // number of items in each bin
-			}
-
-			layer.formulas = Layer.buildLayerFormulas(layer);
-		}
-
-		// ASSIGN GENERATED MASTER SOURCE LAYERS
-		MASTER_SOURCE_COLLECTION.layers = MASTER_SOURCE_LAYERS;
-
-        // SET LAYER FORMULAS FOR BUILD NOTE LAYERS
-        for (const layer of BUILD_NOTE_LAYERS) {
-            if (layer.dataType === "category") {
-                layer.binValues = Array.from(layer.binValues);
-            }
-            
-            if (layer.dataType === "range") {
-
-                const expanded = [];
-                for (const [value, count] of layer.binValues.entries()) {
-                    for (let i = 0; i < count; i++) {
-                        expanded.push(value);
-                    }
-                }
-
-                expanded.sort((a, b) => a - b);
-                const { bins, counts } = Layer.generateBins(expanded);
-                layer.binValues = bins;   // the bin ranges: [[min, max], ...]
-                layer.binCount = counts; // number of items in each bin
-            }
-
-            layer.formulas = Layer.buildLayerFormulas(layer);
-        }
-
-		// ASSIGN GENERATED MASTER SOURCE BUILD NOTE LAYERS
-        MASTER_SOURCE_COLLECTION.buildLayers = BUILD_NOTE_LAYERS;
-		
-
-		// SET MASTER INDEX LAYERS (x3)
-        MASTER_INDEX.baseLayers   = BASE_SOURCE_LAYERS;
-        MASTER_INDEX.masterLayers = MASTER_SOURCE_LAYERS;
+		// BUILD NOTE
+		finalizeLayers(BUILD_NOTE_LAYERS);
+		MASTER_SOURCE.buildLayers = BUILD_NOTE_LAYERS;
         MASTER_INDEX.buildLayers  = BUILD_NOTE_LAYERS;
 
-		// WRITE FILES AND BACKUP FILES
-		// await writeAssetAndBackup(BASE_SOURCE_COLLECTION,   assetsDir,        'base-source.json');
-		// await writeAssetAndBackup(MASTER_SOURCE_COLLECTION, assetsDir,        'master-source.json');
-		await writeAssetAndBackup(BASE_SOURCE_COLLECTION,   baseSrcDir,       'base-source.json');
-		await writeAssetAndBackup(MASTER_SOURCE_COLLECTION, masterSrcDir,     'master-source.json');
-		await writeAssetAndBackup(MASTER_INDEX,             masterIdxDir,     'master-index.json');
-		await writeAssetAndBackup(rejectedParcels,          rejectedItemsDir, 'rejected-parcels.json');
-
-
 		// WRITE HISTORY FILE / INITIAL ENTRY:
-
 		// 1.2 TRACK DIFFERENCES IN LAYERS
-		const [removedBaseLayers,   addedBaseLayers  ] = diffLayers([], BASE_SOURCE_LAYERS)
-		const [removedMasterLayers, addedMasterLayers] = diffLayers([], MASTER_SOURCE_LAYERS);
+		const [removedBaseLayers,   addedBaseLayers  ] = diffLayers([], BASE_LAYERS)
+		const [removedMasterLayers, addedMasterLayers] = diffLayers([], MASTER_LAYERS);
 
-        historyEntry.layerChanges.push(...[
+        HISTORY_ENTRY.layerChanges.push(...[
             removedBaseLayers  .length ? new HistoryEntry({ name: "All Base Layers",   type: 'Base Layers',   action: 'removed', item: removedBaseLayers   .map(layer => layer.name) }) : null,
             addedBaseLayers    .length ? new HistoryEntry({ name: "All Base Layers",   type: 'Base Layers',   action: 'added',   item: addedBaseLayers     .map(layer => layer.name) }) : null,
             removedMasterLayers.length ? new HistoryEntry({ name: "All Master Layers", type: 'Master Layers', action: 'removed', item: removedMasterLayers .map(layer => layer.name) }) : null,
@@ -272,66 +156,35 @@ export async function initializeMapData() {
 		const [rmvdBaseFeatureProps,   addedBaseFeatureProps   ] = diffFeatureProperties([], new BaseCollectionFeature());
 		const [rmvdMasterFeatureProps, addedMasterFeatureProps ] = diffFeatureProperties([], new MasterCollectionFeature());
 
-		historyEntry.featurePropChanges.push(...[
+		HISTORY_ENTRY.featurePropChanges.push(...[
 			rmvdBaseFeatureProps   .length ? new HistoryEntry({ name: 'Base Layer Properties',   type: 'Base Layer Properties',   action: 'removed', item: rmvdBaseFeatureProps })    : null,
 			addedBaseFeatureProps  .length ? new HistoryEntry({ name: 'Base Layer Properties',   type: 'Base Layer Properties',   action: 'added',   item: addedBaseFeatureProps })   : null,
 			rmvdMasterFeatureProps .length ? new HistoryEntry({ name: 'Master Layer Properties', type: 'Master Layer Properties', action: 'removed', item: rmvdMasterFeatureProps })  : null,
 			addedMasterFeatureProps.length ? new HistoryEntry({ name: 'Master Layer Properties', type: 'Master Layer Properties', action: 'added',   item: addedMasterFeatureProps }) : null,
 		].filter(Boolean));
 
-		
-		try {
-			await appendJsonLine(historyEntry, historyDir, 'history.jsonl');
-		} catch (logErr) {
-			console.warn("Failed to write history log:", logErr.message);
-		}
+		const NEW_FILES_DATA = [
+			BASE_SOURCE,
+			MASTER_SOURCE,
+			MASTER_INDEX,
+			[HISTORY_ENTRY],
+			REJECTED,
+		]
+
+		// WRITE BASE FILES LOCALLY
+		await Promise.all(BASE_FILE_NAMES.map((fileName, index) => localWrite(NEW_FILES_DATA[index], fileName)));
+		console.log("✅ Local seed files written successfully.");
+
+		// // UPLOAD BASE FILES TO S3
+		// await Promise.all(BASE_FILE_NAMES.map((fileName, index) => awsPut(NEW_FILES_DATA[index], fileName)));
+		// console.log("✅ AWS_S3 BASE files written successfully.");
+
+		// // UPLOAD BACKUP FILES TO S3
+		// await Promise.all(BACKUP_FILE_NAMES.map((fileName, index) => awsPut(NEW_FILES_DATA[index], fileName)));
+		// console.log("✅ AWS_S3 BACKUP files written successfully.");
 
 	} catch (err) {
 		console.error('❌ Error during seeding:', err);
 	}
 };
 
-async function writeAssetAndBackup(collection, assetDir, assetFilename) {
-    const assetPath  = path.join(assetDir, assetFilename);
-    const json       = JSON.stringify(collection, null, 1);
-
-    await fs.writeFile(assetPath,  json, 'utf8');
-}
-
-async function appendJsonLine(data, dir, filename) {
-	const fullPath = path.join(dir, filename);
-	const line = JSON.stringify(data) + "\n";
-	await fs.mkdir(dir, { recursive: true });
-	await fs.appendFile(fullPath, line);
-}
-
-function diffLayers(oldLayers, newLayers) {
-    const oldKeySet = new Set(oldLayers.map(layer => layer.key));
-    const newKeySet = new Set(newLayers.map(layer => layer.key));
-
-    const added = newLayers.filter(layer => !oldKeySet.has(layer.key));
-    const removed = oldLayers.filter(layer => !newKeySet.has(layer.key));
-
-    return [removed, added];
-}
-
-function diffFeatureProperties(oldFeature, newFeature) {
-
-    if (!oldFeature || !newFeature) return [[], []];
-
-
-    const oldProps = oldFeature.properties || {};
-    const newProps = newFeature.properties || {};
-
-    const oldKeys = new Set(Object.keys(oldProps));
-    const newKeys = new Set(Object.keys(newProps));
-
-    const removed = [...oldKeys].filter(key => !newKeys.has(key));
-    const added   = [...newKeys].filter(key => !oldKeys.has(key));
-
-    return [removed, added];
-}
-
-function isValidValue(val) {
-    return val !== undefined && val !== null && val !== '' && val !== false && val !== 0;
-}
