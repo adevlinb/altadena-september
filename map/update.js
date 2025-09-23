@@ -180,13 +180,14 @@ export default async function updateMap(req, res) {
         NEW_MASTER_INDEX.baseLayers   = NEW_BASE_LAYERS;
         NEW_MASTER_INDEX.masterLayers = NEW_MASTER_LAYERS;
         NEW_MASTER_INDEX.buildLayers  = NEW_BUILD_LAYERS;
+        CURRENT_HISTORY.push(NEW_HISTORY_ENTRY);
 
         // 5.0 => WRITE NEW FILES
         const NEW_FILES_DATA = [
             NEW_BASE_SOURCE,
             NEW_MASTER_SOURCE,
             NEW_MASTER_INDEX,
-            CURRENT_HISTORY.push(NEW_HISTORY_ENTRY),
+            CURRENT_HISTORY,
         ];
 
         // UPLOAD BASE FILES TO S3
