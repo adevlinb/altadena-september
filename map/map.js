@@ -15,11 +15,12 @@ import Ajv from "ajv";
 import addFormats from "ajv-formats";
 
 export class History {
-    constructor(indexVersion, baseVersion, masterVersion, props = [], verified = [], rejected = [], layerChanges = [], featurePropChanges=[], failure = [], notes = "") {
+    constructor(indexVersion, baseVersion, masterVersion, dataSource, props = [], verified = [], rejected = [], layerChanges = [], featurePropChanges=[], failure = [], notes = "") {
         this.id                 = `HistoryEntry-${new Date().toISOString()}`;
         this.masterIdxVers      = indexVersion;  
         this.baseSrcVers        = baseVersion;   
-        this.masterSrcVers      = masterVersion; 
+        this.masterSrcVers      = masterVersion;
+        this.dataSource         = dataSource;
         this.updatedProps       = props;         
         this.verifiedProps      = verified;      
         this.rejectedProps      = rejected;      

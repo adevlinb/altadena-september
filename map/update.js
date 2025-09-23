@@ -12,9 +12,10 @@
 // UNLESS A USER PROVIDES THE COORDINATES NEEDED TO DISPLAY THE INFORMATION ON THE MAP (which is highly unlikely)
 
 import { awsCopy, awsGet, awsPut } from '../amazon/amazon.js';
+import { updateRedisCache } from '../redis/redis.js';
 import { diffLayers, diffFeatureProperties, normalizeName, finalizeLayers, processParcelLayers, mergeParcelProperties, localGet, BASE_FILE_NAMES, BACKUP_FILE_NAMES } from './utility.js';
 import { FeatureCollection, BaseCollectionFeature, MasterCollectionFeature, MasterIndex, MasterIndexFeature, History, HistoryEntry } from "./map.js";
-
+"Failed to load files"
 export default async function updateMap(req, res) {
 
     const updates = req.body;         // rows to udpate (overwrites each time!!)
@@ -25,7 +26,7 @@ export default async function updateMap(req, res) {
     // 0.0 SET CONSTANTS / GLOBAL VARS
     // 0.1  LOAD CURRENT FILES
     const { successfulLoad, data, source } = await loadCurrFiles();
-
+    
     if (!successfulLoad || !data) {
         console.error("Failed to load files, aborting update.");
         return;
@@ -40,8 +41,8 @@ export default async function updateMap(req, res) {
     const NEW_BASE_SOURCE   = new FeatureCollection('base-source');
     const NEW_MASTER_SOURCE = new FeatureCollection('master-source');
     const NEW_MASTER_INDEX  = new MasterIndex('master-index');
-    const NEW_HISTORY_ENTRY = new History(CURR_MASTER_INDEX.id, CURR_BASE_SOURCE.id, CURR_MASTER_SOURCE.id)
-
+    const NEW_HISTORY_ENTRY = new History(CURR_MASTER_INDEX.id, CURR_BASE_SOURCE.id, CURR_MASTER_SOURCE.id, source)
+    
     // 0.4 CREATE NEW LAYERS + ROLODEX
     const NEW_BASE_LAYERS   = FeatureCollection.getBaseLayers();
     const NEW_MASTER_LAYERS = FeatureCollection.getMasterLayers();
@@ -54,12 +55,12 @@ export default async function updateMap(req, res) {
         updates.forEach((parcel) => {
             if (History.validator(parcel) && CURR_MASTER_INDEX.features[parcel.parcelNum]) {
                 const logEntry = new HistoryEntry({ name: `Parcel: ${parcel.parcelNum}`, type: 'Property', action: 'verified', item: parcel });
-                historyEntry.verifiedProps.push(logEntry);
+                NEW_HISTORY_ENTRY.verifiedProps.push(logEntry);
             }
             else {
                 const err = History.validator.errors;
                 const logEntry = new HistoryEntry({ name: `Parcel: ${parcel?.parcelNum || "unknown"}`, type: 'Property', action: 'rejected', item: parcel, details: { errors: err ?? "Likely: Parcel Num not in Master Idx" } });
-                historyEntry.rejectedProps.push(logEntry);
+                NEW_HISTORY_ENTRY.rejectedProps.push(logEntry);
                 History.validator.errors = null;
             }
         });
@@ -70,7 +71,7 @@ export default async function updateMap(req, res) {
         const [removedBuildNoteLayers, addedBuildNoteLayers] = diffLayers(CURR_MASTER_SOURCE.buildLayers, NEW_BUILD_LAYERS);
         
 
-        historyEntry.layerChanges.push(...[
+        NEW_HISTORY_ENTRY.layerChanges.push(...[
             removedBaseLayers     .length ? new HistoryEntry({ name: "All Base Layers",       type: 'Base Layers',       action: 'removed', item: removedBaseLayers      .map(layer => layer.name) }) : null,
             addedBaseLayers       .length ? new HistoryEntry({ name: "All Base Layers",       type: 'Base Layers',       action: 'added',   item: addedBaseLayers        .map(layer => layer.name) }) : null,
             removedMasterLayers   .length ? new HistoryEntry({ name: "All Master Layers",     type: 'Master Layers',     action: 'removed', item: removedMasterLayers    .map(layer => layer.name) }) : null,
@@ -83,7 +84,7 @@ export default async function updateMap(req, res) {
         const [rmvdBaseFeatureProps, addedBaseFeatureProps]     = diffFeatureProperties(CURR_BASE_SOURCE.features[0],   new BaseCollectionFeature());
         const [rmvdMasterFeatureProps, addedMasterFeatureProps] = diffFeatureProperties(CURR_MASTER_SOURCE.features[0], new MasterCollectionFeature());
 
-        historyEntry.featurePropChanges.push(...[
+        NEW_HISTORY_ENTRY.featurePropChanges.push(...[
             rmvdBaseFeatureProps.length    ? new HistoryEntry({ name: 'Base Layer Properties',   type: 'Base Layer Properties',   action: 'removed', item: rmvdBaseFeatureProps    }) : null,
             addedBaseFeatureProps.length   ? new HistoryEntry({ name: 'Base Layer Properties',   type: 'Base Layer Properties',   action: 'added',   item: addedBaseFeatureProps   }) : null,
             rmvdMasterFeatureProps.length  ? new HistoryEntry({ name: 'Master Layer Properties', type: 'Master Layer Properties', action: 'removed', item: rmvdMasterFeatureProps  }) : null,
@@ -92,10 +93,10 @@ export default async function updateMap(req, res) {
 
         
         // ** IF NO CHANGES -> DO NOTHING **
-        if (historyEntry.rejectedProps.length      === 0 &&
-            historyEntry.verifiedProps.length      === 0 &&
-            historyEntry.layerChanges.length       === 0 &&
-            historyEntry.featurePropChanges.length === 0)
+        if (NEW_HISTORY_ENTRY.rejectedProps.length      === 0 &&
+            NEW_HISTORY_ENTRY.verifiedProps.length      === 0 &&
+            NEW_HISTORY_ENTRY.layerChanges.length       === 0 &&
+            NEW_HISTORY_ENTRY.featurePropChanges.length === 0)
             return;
 
         // 2.0 => IMPLEMENT FEATURE UPDATES TO CURRENT MASTER INDEX
@@ -183,60 +184,57 @@ export default async function updateMap(req, res) {
             NEW_BASE_SOURCE,
             NEW_MASTER_SOURCE,
             NEW_MASTER_INDEX,
-            NEW_HISTORY_ENTRY,
+            CURRENT_HISTORY.push(NEW_HISTORY_ENTRY),
         ];
 
-        // AWS S3 UPDATE CURRENT FILES
-        await Promise.all(CURR_FILES.map((fileName, index) => awsPut(fileName, NEW_FILES_DATA[index])));
-
+        // // UPLOAD BASE FILES TO S3
+        // await Promise.all(BASE_FILE_NAMES.map((fileName, index) => awsPut(fileName, NEW_FILES_DATA[index])));
+        // console.log("✅ AWS_S3 BASE files written successfully.");
+        
         // UPDATE REDIS / LOCAL CACHE
-        return { baseSrc: NEW_BASE_SOURCE, masterSrc: NEW_MASTER_SOURCE }
+        updateRedisCache(NEW_BASE_SOURCE, NEW_MASTER_SOURCE );
+        console.log("196 - ✅ Redis upload successful.");
 
     } catch (err) {
-        console.warn(err)
+        console.warn("199 - ", err)
     }
 }
 
 async function loadCurrFiles() {
     const sources = [
-        { name: "primary", files: CURR_FILES,   loader: awsGet },
-        { name: "backup",  files: BACKUP_FILES, loader: awsGet },
-        { name: "redis",   loader: redisGetFiles },     // FIX REDIS!!
-        { name: "local",   files: CURR_FILES,   loader: localGet },  // write local get function!
+        { name: "aws - primary", files: BASE_FILE_NAMES,   loader: awsGet  },
+        { name: "aws - backup",  files: BACKUP_FILE_NAMES, loader: awsGet  },
+        { name: "local",         files: BASE_FILE_NAMES,   loader: localGet},  // check local get function! - abort??
     ];
 
     for (const source of sources) {
         try {
-            let data;
-            if (source.files) {
-                data = await Promise.all(source.files.map(file => source.loader(file)));
-            } else {
-                data = await source.loader(); // e.g., Redis might return all at once
-            }
-            console.log(`Loaded files from ${source.name}`);
-            return { success: true, data, source: source.name };
+            const data = await Promise.all(source.files.map(file => source.loader(file)));
+            console.log(`213 - Loaded files from ${source.name}`);
+            return { successfulLoad: true, data, source: source.name };
         } catch (err) {
-            console.warn(`Failed to load from ${source.name}:`, err);
+            console.warn(`216 - Failed to load from ${source.name}:`, err);
         }
     }
 
-    console.error("All file loading attempts failed.");
+    console.error("220 - All file loading attempts failed.");
     return { successfulLoad: false, data: null, source: null };
 }
 
+// THIS IS WRONG!!! track filename usage in aws copy and put
 export async function backupCurrFiles(currentData) {
     try {
-        await Promise.all(CURR_FILES.map((file, i) => awsCopy(file, BACKUP_FILES[i])));
-        console.log("Backups copied successfully in S3");
+        await Promise.all(BASE_FILE_NAMES.map((fileName, i) => awsCopy(fileName, BACKUP_FILE_NAMES[i])));
+        console.log("228 - Backups copied successfully in S3");
         return true;
     } catch (err) {
-        console.warn("S3 copy failed, falling back to awsPut:", err);
+        console.warn("231 - S3 copy failed, falling back to awsPut:", err);
         try {
-            await Promise.all(CURR_FILES.map((file, i) => awsPut(BACKUP_FILES[i], currentData[i])));
-            console.log("Backups uploaded successfully via awsPut");
+            await Promise.all(BACKUP_FILE_NAMES.map((file, i) => awsPut(BACKUP_FILE_NAMES[i], currentData[i])));
+            console.log("234 - Backups uploaded successfully via awsPut");
             return true;
         } catch (err2) {
-            console.error("Backup failed completely:", err2);
+            console.error("237 - Backup failed completely:", err2);
             return false;
         }
     }

@@ -67,7 +67,6 @@ export default function App({ user = {} }) {
 		});
 
 		setMapLayers([
-			...mapLayers,
 			...baseSource.layers,
 			...masterSource.layers,
 			...masterSource.buildLayers,
@@ -106,6 +105,7 @@ export default function App({ user = {} }) {
 		<img src="https://media.tenor.com/hQz0Kl373E8AAAAm/loading-waiting.webp" alt="loading gif" />
 	</div>)
 
+		console.log(mapLayers)
 
 	return (
 		<main>

@@ -2,8 +2,9 @@
 // This seed file is only meant to be run ONCE to initiate the starting point for map related items. 
 // It only needs to be run IF something happens to all of the other files!!!
 /***************************************************/
-// import dotenv from 'dotenv'; => development only
-// dotenv.config({ path: path.resolve(process.cwd(), '../.env') });
+import dotenv from 'dotenv'; // => development only
+dotenv.config({ path: path.resolve(process.cwd(), '../.env') });
+
 // IMPORTS
 import fs from 'fs/promises';
 import path from 'path';
@@ -93,7 +94,7 @@ export async function initializeMapData() {
 		const MASTER_LAYERS            = FeatureCollection.getMasterLayers();
 		const BUILD_NOTE_LAYERS		   = FeatureCollection.getBuildNoteLayers();
 		const MASTER_INDEX             = new MasterIndex('master-index'); // HOLDS ALL DATA (GENERATED ONCE AND UPDATED => USED FOR ALL FUTURE FEATURE COLLECTIONS)
-    	const HISTORY_ENTRY            = new History(MASTER_INDEX.id, BASE_SOURCE.id, MASTER_SOURCE.id)
+    	const HISTORY_ENTRY            = new History(MASTER_INDEX.id, BASE_SOURCE.id, MASTER_SOURCE.id, "original files - local")
 		
 		// FORMAT, CALCULATE, STRUCTURE DATA AND LAYERS FOR BASE / MASTER SOURCES AND MASTER INDEX
 		allGeoDataParcels.forEach((p) => {

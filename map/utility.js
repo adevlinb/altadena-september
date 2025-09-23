@@ -14,12 +14,11 @@ export const FILE_LOOKUP = {
     "rejected.json":      path.resolve(__dirname, "../map/rejectedParcels"),
 };
 
-export const BASE_FILE_NAMES   = ["base-source.json", "master-source.json", "master-index.json", "history.json", "rejected.json"]
-export const BACKUP_FILE_NAMES = ["base-source.backup.json", "master-source.backup.json", "master-index.backup.json"]
+export const BASE_FILE_NAMES   = ["base-source.json", "master-source.json", "master-index.json", "history.json"]  //  "rejected.json" (seed process only)
+export const BACKUP_FILE_NAMES = ["base-source.backup.json", "master-source.backup.json", "master-index.backup.json", "history.backup.json"]
 
 export async function localGet(fileName) {
     try {
-        console.log("calling local get function!!!", fileName)
         const dir = FILE_LOOKUP[fileName];
         if (!dir) throw new Error(`Unknown local file requested: ${fileName}`);
         const filePath = path.join(dir, fileName);
