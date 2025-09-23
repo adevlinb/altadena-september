@@ -34,6 +34,8 @@ export default async function updateMap(req, res) {
 
     const [CURR_BASE_SOURCE, CURR_MASTER_SOURCE, CURR_MASTER_INDEX, CURRENT_HISTORY] = data;
 
+    console.log("line 37 update map", CURRENT_HISTORY, `current history is an array?.. ${Array.isArray(CURRENT_HISTORY)}`, source);
+
     // 0.2 WRITE BACKUPS
     await backupCurrFiles(data);
 

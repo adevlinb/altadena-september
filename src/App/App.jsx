@@ -32,14 +32,20 @@ export default function App({ user = {} }) {
 	const [baseSource,      setBaseSource     ] = useState(null);
 	const [masterSource,    setMasterSource   ] = useState(null);
 	const [mapLoadProgress, setMapLoadProgress] = useState(0);
+	const [sourceError,     setSourceError    ] = useState({ msg: "" });
 	const TOGGLE_PROPS = { handleSize: 12, barHeight: 16, barWidth: 32, barBackgroundColor: "#2980B9", barBackgroundColorActive: "#E74C3C" };
 
 	useEffect(() => {
 		async function fetchSources() {
-			// const { baseSource, masterSource } = await fetch("https://altadena-firemap-39f5e8fa99c6.herokuapp.com/map").then(r => r.json());
-			// const { baseSource, masterSource } = await mapboxFuncs.fetchWithProgress("https://altadena-firemap-39f5e8fa99c6.herokuapp.com/map", setMapLoadProgress);
-			const { baseSource, masterSource } = await mapboxFuncs.fetchWithProgress("http://localhost:3001/map", setMapLoadProgress);
-
+			const { baseSource, masterSource } = await mapboxFuncs.fetchWithProgress("https://altadena-firemap-39f5e8fa99c6.herokuapp.com/map", setMapLoadProgress);
+			if (!baseSource || !masterSource) {
+				const msg = { msg: "" }
+				if(!baseSource)   msg.msg += "Error loading base map source."
+				if(!masterSource) msg.msg += "Error loading master map source."
+				msg.msg += "Please contact admin."
+				setSourceError(msg)
+			}
+			setSourceError({ msg: "" })
 			setBaseSource(baseSource);
 			setMasterSource(masterSource);
 			setBuildLayerNames(masterSource.buildLayers.map(layer => layer.name))
@@ -110,10 +116,8 @@ export default function App({ user = {} }) {
 		<div style={{ width: "45vw", background: "#eee", height: "8px", borderRadius: "4px", overflow: "hidden" }}>
   			<div style={{ width: `${mapLoadProgress}%`, height: "100%", background: "#2980B9", transition: "width 0.3s ease-out" }} />
 		</div>
-		{/* <div style={{ width: "45vw", background: "#eee", height: "8px" }}>
-			<div style={{ width: `${mapLoadProgress}%`, height: "100%", background: "#2980B9" }}/>
-		</div> */}
-		<img src="https://media.tenor.com/hQz0Kl373E8AAAAm/loading-waiting.webp" alt="loading gif" />
+		{sourceError.msg && <div>{sourceError.msg}</div>}
+		{/* <img src="https://media.tenor.com/hQz0Kl373E8AAAAm/loading-waiting.webp" alt="loading gif" /> */}
 	</div>)
 
 
