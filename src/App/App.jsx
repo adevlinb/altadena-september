@@ -101,7 +101,8 @@ export default function App({ user = {} }) {
 	return (<div id="loading">
 		<h1>Altadena Collective</h1>
 		<h2>Firemap</h2>
-		<div>Map is loading - please contact admin if experiencing issues.</div>
+		<div>Map is loading (may take a minute!)</div>
+		<div>Please contact admin if experiencing issues.</div>
 		<img src="https://media.tenor.com/hQz0Kl373E8AAAAm/loading-waiting.webp" alt="loading gif" />
 	</div>)
 
