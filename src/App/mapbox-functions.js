@@ -211,3 +211,39 @@ export function updatePropertyLayers(mapRef, layer, sublayer, action) {
         if (layer && mapRef.current.getLayer(layer)) mapRef.current.moveLayer(layer);
     })
 }
+
+export async function fetchWithProgress(url, onProgress) {
+    return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open("GET", url, true);
+        xhr.responseType = "json";
+        let lastPercent = 0;
+        let totalBytes = 0
+
+            // Get headers once they are loaded
+        xhr.onreadystatechange = () => {
+            if (xhr.readyState === xhr.HEADERS_RECEIVED) {
+                const contentLength = xhr.getResponseHeader("Content-Length");
+                if (contentLength) totalBytes = parseInt(contentLength, 10);
+                console.log(`Total file size: ${(totalBytes / (1024 * 1024)).toFixed(2)} MB`);
+            }
+        };
+
+        xhr.onprogress = (event) => {
+            if (!totalBytes) return; // wait until headers received
+            if (onProgress) {
+                const percent = Math.max((event.loaded / totalBytes) * 100, lastPercent);
+                lastPercent = percent;
+                console.log("loaded: ", event.loaded, "total: ", totalBytes)
+                onProgress(percent);
+            }
+        };
+
+        xhr.onload = () => {
+            if (onProgress) onProgress(100);
+            resolve(xhr.response);
+        };
+        xhr.onerror = reject;
+        xhr.send();
+    });
+}

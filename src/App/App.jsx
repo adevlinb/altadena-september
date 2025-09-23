@@ -31,11 +31,15 @@ export default function App({ user = {} }) {
 	const [buildLayerNames, setBuildLayerNames] = useState([])
 	const [baseSource,      setBaseSource     ] = useState(null);
 	const [masterSource,    setMasterSource   ] = useState(null);
+	const [mapLoadProgress, setMapLoadProgress] = useState(0);
 	const TOGGLE_PROPS = { handleSize: 12, barHeight: 16, barWidth: 32, barBackgroundColor: "#2980B9", barBackgroundColorActive: "#E74C3C" };
 
 	useEffect(() => {
 		async function fetchSources() {
-			const { baseSource, masterSource } = await fetch("https://altadena-firemap-39f5e8fa99c6.herokuapp.com/map").then(r => r.json());
+			// const { baseSource, masterSource } = await fetch("https://altadena-firemap-39f5e8fa99c6.herokuapp.com/map").then(r => r.json());
+			// const { baseSource, masterSource } = await mapboxFuncs.fetchWithProgress("https://altadena-firemap-39f5e8fa99c6.herokuapp.com/map", setMapLoadProgress);
+			const { baseSource, masterSource } = await mapboxFuncs.fetchWithProgress("http://localhost:3001/map", setMapLoadProgress);
+
 			setBaseSource(baseSource);
 			setMasterSource(masterSource);
 			setBuildLayerNames(masterSource.buildLayers.map(layer => layer.name))
@@ -103,10 +107,15 @@ export default function App({ user = {} }) {
 		<h2>Firemap</h2>
 		<div>Map is loading (may take a minute!)</div>
 		<div>Please contact admin if experiencing issues.</div>
+		<div style={{ width: "45vw", background: "#eee", height: "8px", borderRadius: "4px", overflow: "hidden" }}>
+  			<div style={{ width: `${mapLoadProgress}%`, height: "100%", background: "#2980B9", transition: "width 0.3s ease-out" }} />
+		</div>
+		{/* <div style={{ width: "45vw", background: "#eee", height: "8px" }}>
+			<div style={{ width: `${mapLoadProgress}%`, height: "100%", background: "#2980B9" }}/>
+		</div> */}
 		<img src="https://media.tenor.com/hQz0Kl373E8AAAAm/loading-waiting.webp" alt="loading gif" />
 	</div>)
 
-		console.log(mapLayers)
 
 	return (
 		<main>

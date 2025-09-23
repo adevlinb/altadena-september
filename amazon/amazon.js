@@ -25,43 +25,6 @@ export async function awsCopy(sourceKey, destKey) {
     }
 }
 
-// REGULAR AWS
-// export async function awsGet(fileName) {
-//     try {
-//         const s3params = {
-//             Bucket: S3_BUCKET,
-//             Key: fileName,
-//         }
-//         const command = new GetObjectCommand(s3params);
-//         const response = await s3Client.send(command);
-//         const body = await response.Body.transformToString();
-//         return JSON.parse(body);
-//     } catch (err) {
-//         console.error(`Error fetching ${fileName} from S3:`, err);
-//         throw err;
-//     }
-// }
-
-// DECOMPRESS AWS
-// export async function awsGet(fileName) {
-//     try {
-//         const s3params = {
-//             Bucket: S3_BUCKET,
-//             Key: fileName,
-//         }
-//         const command = new GetObjectCommand(s3params);
-//         const response = await s3Client.send(command);
-//         // or transformToBuffer() depending on SDK version
-//         const bodyBuffer = await response.Body.transformToByteArray(); 
-//         const decompressed = await gunzip(bodyBuffer);
-//         return JSON.parse(decompressed.toString("utf-8"));
-//     } catch (err) {
-//         console.error(`Error fetching ${fileName} from S3:`, err);
-//         throw err;
-//     }
-// }
-
-// AWS PREPPED FOR DECOMP AND REGULAR
 export async function awsGet(fileName) {
     const { S3_REGION, S3_BUCKET } = process.env;
     const s3Client = new S3Client({ region: S3_REGION });
@@ -74,25 +37,11 @@ export async function awsGet(fileName) {
             })
         );
 
-        // Convert response body to Buffer
-        const bodyBuffer = await response.Body.transformToByteArray();
-
-        // Detect gzip by magic numbers (0x1f 0x8b)
-        const isGzip = bodyBuffer[0] === 0x1f && bodyBuffer[1] === 0x8b;
-        const rawData = isGzip ? await gunzip(bodyBuffer) : bodyBuffer;
-
-        // Parse JSON safely
-        try {
-            return JSON.parse(rawData.toString("utf-8"));
-        } catch (jsonErr) {
-            console.error(
-                `Failed to parse JSON from ${fileName}, first 50 bytes:`,
-                rawData.slice(0, 50).toString("utf-8")
-            );
-            throw jsonErr;
-        }
+        const compressedBuffer = await response.Body.transformToByteArray();
+        const rawBuffer = await gunzip(compressedBuffer);
+        return JSON.parse(rawBuffer.toString("utf-8"));
     } catch (err) {
-        console.error(`Error fetching ${fileName} from S3:`, err);
+        console.error(`Error fetching ${fileName} from S3 or convertiing to json`, err);
         throw err;
     }
 }

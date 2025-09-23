@@ -13,15 +13,16 @@ let redisConnecting = null;
 export async function getRedisClient() {
     if (redisClient?.isOpen) return redisClient;
     if (redisConnecting) return redisConnecting;
+    console.log(process.env.REDISCLOUD_URL, "checking redis url from env")
 
     redisConnecting = (async () => {
         try {
             const client = createClient({
                 url: process.env.REDISCLOUD_URL,
-                socket: {
-                    tls: true,
-                    rejectUnauthorized: false  // Heroku’s self-signed certs require this
-                }
+                // socket: {
+                //     tls: true,
+                //     rejectUnauthorized: false  // Heroku’s self-signed certs require this
+                // }
             });
             client.on("error", (err) => {
                 console.error("Redis error:", err);
@@ -46,16 +47,14 @@ export async function getRedisClient() {
 
 export async function getMapFiles(req, res) {
     const fetchFile = async (fileName) => {
-        // Try Redis first
         const client = await getRedisClient().catch(() => null);
         if (client) {
             try {
                 const cached = await client.get(fileName);
                 if (cached) {
-                    const buffer = Buffer.from(cached, "base64");
-                    const decompressed = await gunzip(buffer);
-                    console.log(`Redis cache for ${fileName} found successfully.`)
-                    return JSON.parse(decompressed.toString("utf-8"));
+                    const buffer = Buffer.from(cached, "base64");       // decode base64
+                    const decompressed = await gunzip(buffer);          // decompress gzip
+                    return JSON.parse(decompressed.toString("utf-8"));  // parse JSON
                 }
             } catch (err) {
                 console.log(`Cache miss/decompress error for ${fileName}:`, err);
@@ -67,14 +66,18 @@ export async function getMapFiles(req, res) {
             console.log(`AWS fetch failed for ${fileName}:`, err);
             return null;
         });
-        if (awsFile) return awsFile;
+        if (awsFile) {
+            updateRedisCache(fileName, awsFile).catch(err => { console.warn("Redis cache update failed:", err) });
+            return awsFile;
+        }
 
         // Fallback to local
         const localFile = await localGet(fileName).catch(err => {
             console.log(`Local fetch failed for ${fileName}:`, err);
             return null;
         });
-        return localFile
+        updateRedisCache(fileName, localFile).catch(err => { console.warn("Redis cache update failed:", err) });
+        return localFile;
     };
 
     try {
@@ -84,32 +87,24 @@ export async function getMapFiles(req, res) {
             fetchFile("master-source.json")
         ]);
 
-        // Update Redis cache asynchronously, but don’t block response
-        updateRedisCache(baseSource, masterSource).catch(err => {
-            console.warn("Redis cache update failed:", err);
-        });
-
-        res.json({ baseSource: baseSource || null, masterSource: masterSource || null });
+        const payload = JSON.stringify({ baseSource: baseSource || null, masterSource: masterSource || null });
+        res.setHeader("Content-Length", Buffer.byteLength(payload));
+        res.setHeader("Content-Type", "application/json");
+        res.send(payload);
     } catch (err) {
         console.error("Failed to serve /map:", err);
         res.status(500).json({ baseSource: null, masterSource: null });
     }
 }
 
-export async function updateRedisCache(baseSrc, masterSrc) {
+export async function updateRedisCache(filename, file) {
     const client = await getRedisClient();
-    if (!client || !baseSrc || !masterSrc) return;
+    if (!client || !file) return;
 
     try {
-        const compressedBase = await gzip(JSON.stringify(baseSrc));
-        const compressedMaster = await gzip(JSON.stringify(masterSrc));
-
-        await Promise.all([
-            client.set("base-source.json", compressedBase.toString("base64")),
-            client.set("master-source.json", compressedMaster.toString("base64")),
-        ]);
-
-        console.log("Redis cache updated successfully");
+        const compressed = await gzip(JSON.stringify(file));
+        await client.set(filename, compressed.toString("base64")),
+        console.log(`Redis cache updated successfully for ${filename}`);
     } catch (err) {
         console.warn("Failed to update Redis cache:", err);
     }
