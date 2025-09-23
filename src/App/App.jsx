@@ -35,7 +35,7 @@ export default function App({ user = {} }) {
 
 	useEffect(() => {
 		async function fetchSources() {
-			const { baseSource, masterSource } = await fetch("http://localhost:3001/map").then(r => r.json());
+			const { baseSource, masterSource } = await fetch("https://altadena-firemap-39f5e8fa99c6.herokuapp.com/map").then(r => r.json());
 			setBaseSource(baseSource);
 			setMasterSource(masterSource);
 			setBuildLayerNames(masterSource.buildLayers.map(layer => layer.name))

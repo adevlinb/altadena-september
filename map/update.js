@@ -42,7 +42,7 @@ export default async function updateMap(req, res) {
     const NEW_MASTER_SOURCE = new FeatureCollection('master-source');
     const NEW_MASTER_INDEX  = new MasterIndex('master-index');
     const NEW_HISTORY_ENTRY = new History(CURR_MASTER_INDEX.id, CURR_BASE_SOURCE.id, CURR_MASTER_SOURCE.id, source)
-    
+
     // 0.4 CREATE NEW LAYERS + ROLODEX
     const NEW_BASE_LAYERS   = FeatureCollection.getBaseLayers();
     const NEW_MASTER_LAYERS = FeatureCollection.getMasterLayers();
@@ -163,9 +163,9 @@ export default async function updateMap(req, res) {
         }
 
         // 4.0 GENERATE LAYER FORMULAS 
-        finalizeLayers(BASE_SOURCE_LAYERS);
-        finalizeLayers(MASTER_SOURCE_LAYERS);
-        finalizeLayers(BUILD_NOTE_LAYERS);
+        finalizeLayers(NEW_BASE_LAYERS);
+        finalizeLayers(NEW_MASTER_LAYERS);
+        finalizeLayers(NEW_BUILD_LAYERS);
 
         // 4.4 ASSIGN LAYERS, ROLODEX
         NEW_BASE_SOURCE.layers        = NEW_BASE_LAYERS;
@@ -187,12 +187,12 @@ export default async function updateMap(req, res) {
             CURRENT_HISTORY.push(NEW_HISTORY_ENTRY),
         ];
 
-        // // UPLOAD BASE FILES TO S3
-        // await Promise.all(BASE_FILE_NAMES.map((fileName, index) => awsPut(fileName, NEW_FILES_DATA[index])));
-        // console.log("✅ AWS_S3 BASE files written successfully.");
+        // UPLOAD BASE FILES TO S3
+        await Promise.all(BASE_FILE_NAMES.map((fileName, index) => awsPut(fileName, NEW_FILES_DATA[index])));
+        console.log("✅ AWS_S3 BASE files written successfully.");
         
         // UPDATE REDIS / LOCAL CACHE
-        updateRedisCache(NEW_BASE_SOURCE, NEW_MASTER_SOURCE );
+        updateRedisCache(NEW_BASE_SOURCE, NEW_MASTER_SOURCE);
         console.log("196 - ✅ Redis upload successful.");
 
     } catch (err) {

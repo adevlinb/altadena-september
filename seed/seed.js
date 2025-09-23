@@ -2,8 +2,8 @@
 // This seed file is only meant to be run ONCE to initiate the starting point for map related items. 
 // It only needs to be run IF something happens to all of the other files!!!
 /***************************************************/
-import dotenv from 'dotenv'; // => development only
-dotenv.config({ path: path.resolve(process.cwd(), '../.env') });
+// import dotenv from 'dotenv'; // => development only
+// dotenv.config({ path: path.resolve(process.cwd(), '../.env') });
 
 // IMPORTS
 import fs from 'fs/promises';

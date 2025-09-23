@@ -16,7 +16,13 @@ export async function getRedisClient() {
 
     redisConnecting = (async () => {
         try {
-            const client = createClient({ url: "redis://127.0.0.1:6379" });
+            const client = createClient({
+                url: process.env.REDISCLOUD_URL,
+                socket: {
+                    tls: true,
+                    rejectUnauthorized: false  // Heroku’s self-signed certs require this
+                }
+            });
             client.on("error", (err) => {
                 console.error("Redis error:", err);
                 redisClient = null;
@@ -83,7 +89,7 @@ export async function getMapFiles(req, res) {
             console.warn("Redis cache update failed:", err);
         });
 
-        res.json({ baseSource: baseSource || null , masterSource: masterSource || null });
+        res.json({ baseSource: baseSource || null, masterSource: masterSource || null });
     } catch (err) {
         console.error("Failed to serve /map:", err);
         res.status(500).json({ baseSource: null, masterSource: null });
@@ -94,19 +100,19 @@ export async function updateRedisCache(baseSrc, masterSrc) {
     const client = await getRedisClient();
     if (!client || !baseSrc || !masterSrc) return;
 
-	try {
-		const compressedBase   = await gzip(JSON.stringify(baseSrc));
-		const compressedMaster = await gzip(JSON.stringify(masterSrc));
+    try {
+        const compressedBase = await gzip(JSON.stringify(baseSrc));
+        const compressedMaster = await gzip(JSON.stringify(masterSrc));
 
-		await Promise.all([
-			client.set("base-source.json",   compressedBase.toString("base64")),
-			client.set("master-source.json", compressedMaster.toString("base64")),
-		]);
+        await Promise.all([
+            client.set("base-source.json", compressedBase.toString("base64")),
+            client.set("master-source.json", compressedMaster.toString("base64")),
+        ]);
 
         console.log("Redis cache updated successfully");
-	} catch (err) {
-		console.warn("Failed to update Redis cache:", err);
-	}
+    } catch (err) {
+        console.warn("Failed to update Redis cache:", err);
+    }
 }
 
 export async function shutdownRedis() {
