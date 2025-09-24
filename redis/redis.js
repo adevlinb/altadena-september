@@ -49,12 +49,11 @@ export async function getMapFiles(req, res) {
         const client = await getRedisClient().catch(() => null);
         if (client) {
             try {
-                const cached = await client.get(fileName);
+                const cached = await client.getBuffer(fileName);
                 if (cached) {
                     console.log("loading from redis cache")
-                    const buffer = Buffer.from(cached, "base64");       // decode base64
-                    const decompressed = await gunzip(buffer);          // decompress gzip
-                    return JSON.parse(decompressed.toString("utf-8"));  // parse JSON
+                    const decompressed = await gunzip(cached);   // cached is already a Buffer
+                    return JSON.parse(decompressed.toString("utf-8"));
                 }
             } catch (err) {
                 console.log(`Cache miss/decompress error for ${fileName}:`, err);
@@ -102,8 +101,8 @@ export async function updateRedisCache(filename, file) {
     if (!client || !file) return;
 
     try {
-        const compressed = await gzip(JSON.stringify(file));
-        await client.set(filename, compressed.toString("base64")),
+        const compressed = await gzip(JSON.stringify(file)); // returns Buffer
+        await client.set(filename, compressed);              // store raw Buffer directly
         console.log(`Redis cache updated successfully for ${filename}`);
     } catch (err) {
         console.warn("Failed to update Redis cache:", err);
