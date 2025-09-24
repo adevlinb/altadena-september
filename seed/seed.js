@@ -13,8 +13,8 @@ import { FeatureCollection, BaseCollectionFeature, MasterCollectionFeature, Mast
 import { diffLayers, diffFeatureProperties, finalizeLayers, processParcelLayers, localWrite, BASE_FILE_NAMES, BACKUP_FILE_NAMES } from '../map/utility.js';
 import { awsPut } from '../amazon/amazon.js';
 import { fileURLToPath } from 'url';
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// const __filename = fileURLToPath(import.meta.url);
+// const __dirname = path.dirname(__filename);
 
 // FOLDER / FILE PATHS
 const originalDataDir  = path.resolve(__dirname, './original_geojson_data');
