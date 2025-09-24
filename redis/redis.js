@@ -13,16 +13,15 @@ let redisConnecting = null;
 export async function getRedisClient() {
     if (redisClient?.isOpen) return redisClient;
     if (redisConnecting) return redisConnecting;
-    console.log(process.env.REDISCLOUD_URL, "checking redis url from env")
 
     redisConnecting = (async () => {
         try {
             const client = createClient({
                 url: process.env.REDISCLOUD_URL,
-                // socket: {
-                //     tls: true,
-                //     rejectUnauthorized: false  // Heroku’s self-signed certs require this
-                // }
+                socket: {
+                    tls: true,
+                    rejectUnauthorized: false  // Heroku’s self-signed certs require this
+                }
             });
             client.on("error", (err) => {
                 console.error("Redis error:", err);
@@ -52,6 +51,7 @@ export async function getMapFiles(req, res) {
             try {
                 const cached = await client.get(fileName);
                 if (cached) {
+                    console.log("loading from redis cache")
                     const buffer = Buffer.from(cached, "base64");       // decode base64
                     const decompressed = await gunzip(buffer);          // decompress gzip
                     return JSON.parse(decompressed.toString("utf-8"));  // parse JSON
