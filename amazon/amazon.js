@@ -25,7 +25,7 @@ export async function awsCopy(sourceKey, destKey) {
     }
 }
 
-export async function awsGet(fileName) {
+export async function awsGet(fileName, decomp = true) {
     const { S3_REGION, S3_BUCKET } = process.env;
     const s3Client = new S3Client({ region: S3_REGION });
 
@@ -37,11 +37,15 @@ export async function awsGet(fileName) {
             })
         );
 
+        // Convert the Body stream to a buffer
         const compressedBuffer = await response.Body.transformToByteArray();
+
+        if (!decomp) return compressedBuffer;
+
         const rawBuffer = await gunzip(compressedBuffer);
         return JSON.parse(rawBuffer.toString("utf-8"));
     } catch (err) {
-        console.error(`Error fetching ${fileName} from S3 or convertiing to json`, err);
+        console.error(`Error fetching ${fileName} from S3`, err);
         throw err;
     }
 }
@@ -54,7 +58,7 @@ export async function awsPut(fileName, fileData) {
         const s3Params = {
             Bucket: S3_BUCKET,
             Key: fileName,
-            Body: Buffer.from(await gzip(JSON.stringify(fileData))),
+            Body: await gzip(JSON.stringify(fileData)),
             ContentType: "application/json",
             ContentEncoding: "gzip",
             Metadata: {

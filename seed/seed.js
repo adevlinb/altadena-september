@@ -2,8 +2,8 @@
 // This seed file is only meant to be run ONCE to initiate the starting point for map related items. 
 // It only needs to be run IF something happens to all of the other files!!!
 /***************************************************/
-// import dotenv from 'dotenv'; // => development only
-// dotenv.config({ path: path.resolve(process.cwd(), '../.env') });
+import dotenv from 'dotenv'; // => development only
+dotenv.config({ path: path.resolve(process.cwd(), '../.env') });
 
 // IMPORTS
 import fs from 'fs/promises';
@@ -184,6 +184,11 @@ export async function initializeMapData() {
 		// await Promise.all(BACKUP_FILE_NAMES.map((fileName, index) => awsPut(NEW_FILES_DATA[index], fileName)));
 		await Promise.all(BACKUP_FILE_NAMES.map((fileName, index) => awsPut(fileName, NEW_FILES_DATA[index])));
 		console.log("✅ AWS_S3 BACKUP files written successfully.");
+
+		const zippedBase   = await gzip(JSON.stringify(BASE_SOURCE)) 
+		const zippedMaster = await gzip(JSON.stringify(MASTER_SOURCE));
+		updateRedisCache(zippedBase);
+		updateRedisCache(zippedMaster);
 
 	} catch (err) {
 		console.error('❌ Error during seeding:', err);

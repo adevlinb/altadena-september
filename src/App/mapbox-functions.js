@@ -1,11 +1,12 @@
 import * as turf from '@turf/turf';
+import pako from 'pako';
 
 const layerOrder = ["outline", "distance-circles-layer", "center-point-layer", "distance-circle-labels", "master-click-layer"]
 
 export const propertyLayers = [
-    { key: "distance-circles",   name: "Distance",      src: "property-source", type: 'line',   binCount: {}, formulas: [{ id: "distance-circles-layer", name: "Distance",      type: 'line',   layout: { visibility: "visible" }, filter: ['==', '$type', 'Polygon'], source: "property-source", paint: { 'line-color': '#ff0000', 'line-width': 3, 'line-dasharray': [3, 3] }}]},
-    { key: "center-point",       name: "Center Point",  src: "property-source", type: 'circle', binCount: {}, formulas: [{ id: "center-point-layer",     name: "Center Point",  type: 'circle', layout: { visibility: "visible" }, filter: ['all', ['==', '$type', 'Point'], ['==', 'type', 'center-point']],    source: "property-source", paint: { 'circle-radius': 6, 'circle-color': '#ff0000', 'circle-stroke-width': 1.5, 'circle-stroke-color': '#fff' }}]},
-    { key: "dist-circle-labels", name: "Circle Labels", src: "property-source", type: 'symbol', binCount: {}, formulas: [{ id: "distance-circle-labels", name: "Circle Labels", type: 'symbol', filter: ['==', ['get', 'type'], 'distance-label'], source: "property-source",   layout: { 'visibility': "visible", 'text-field': ['get', 'label'], 'text-size': 16, 'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'], 'text-anchor': 'center' }, paint: { 'text-color': '#000000', 'text-halo-color': '#fff', 'text-halo-width': 1 }}]}
+    { key: "distance-circles", name: "Distance", src: "property-source", type: 'line', binCount: {}, formulas: [{ id: "distance-circles-layer", name: "Distance", type: 'line', layout: { visibility: "visible" }, filter: ['==', '$type', 'Polygon'], source: "property-source", paint: { 'line-color': '#ff0000', 'line-width': 3, 'line-dasharray': [3, 3] } }] },
+    { key: "center-point", name: "Center Point", src: "property-source", type: 'circle', binCount: {}, formulas: [{ id: "center-point-layer", name: "Center Point", type: 'circle', layout: { visibility: "visible" }, filter: ['all', ['==', '$type', 'Point'], ['==', 'type', 'center-point']], source: "property-source", paint: { 'circle-radius': 6, 'circle-color': '#ff0000', 'circle-stroke-width': 1.5, 'circle-stroke-color': '#fff' } }] },
+    { key: "dist-circle-labels", name: "Circle Labels", src: "property-source", type: 'symbol', binCount: {}, formulas: [{ id: "distance-circle-labels", name: "Circle Labels", type: 'symbol', filter: ['==', ['get', 'type'], 'distance-label'], source: "property-source", layout: { 'visibility': "visible", 'text-field': ['get', 'label'], 'text-size': 16, 'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'], 'text-anchor': 'center' }, paint: { 'text-color': '#000000', 'text-halo-color': '#fff', 'text-halo-width': 1 } }] }
 ]
 
 export const MASTER_CLICK_LAYER = {
@@ -19,20 +20,20 @@ export function addSourceAndLayers(mapRef, source, isBaseSource, user) {
     if (!mapRef.current) return;                         // mapRef not loaded
     if (!isBaseSource && !user) return                   // source = MASTER, but no user
     if (mapRef?.current?.getSource(source.name)) return; // source already loaded;
-    
+
     mapRef.current.addSource(source.name, { type: 'geojson', data: source });
     if (source.name === "master-source" && !mapRef.current.getLayer(MASTER_CLICK_LAYER.id)) {
-        mapRef.current.addLayer(MASTER_CLICK_LAYER); 
+        mapRef.current.addLayer(MASTER_CLICK_LAYER);
     }
-    
+
     source.layers.forEach(layer => {
         layer.formulas.forEach(formula => {
             if (Array.isArray(formula.filter) && formula.filter.length < 1) delete formula.filter
             if (formula?.id) mapRef.current.addLayer(formula)
         });
     });
-    
-    if (source.name === "master-source") 
+
+    if (source.name === "master-source")
         source.buildLayers.forEach(layer => {
             layer.formulas.forEach(formula => {
                 if (Array.isArray(formula.filter) && formula.filter.length < 1) delete formula.filter
@@ -68,7 +69,7 @@ export function addClickEvt(mapRef, setPropertyDetail, setShowPropDetail) {
         setPropertyDetail(feature)
         setShowPropDetail(true)
     });
-    
+
 }
 
 function setPropertySrcAndLayers(mapRef, parcelData) {
@@ -76,7 +77,7 @@ function setPropertySrcAndLayers(mapRef, parcelData) {
         ? parcelData.centroid
         : JSON.parse(parcelData.centroid);
     if (!centroid) return;
-    
+
     const distances = [1, 2, 3];
     const features = generateDistanceCircles(centroid, distances);
 
@@ -129,10 +130,10 @@ export function updateLayers(mapRef, layer, sublayer, action) {
     switch (action) {
         case "opacity": {
             const opacity = {
-                'line':    'line-opacity',
-                'circle':  'circle-opacity',
-                'symbol':  'text-opacity',
-                'fill':    'fill-opacity',
+                'line': 'line-opacity',
+                'circle': 'circle-opacity',
+                'symbol': 'text-opacity',
+                'fill': 'fill-opacity',
             }
 
             const prop = opacity[type];
@@ -142,10 +143,10 @@ export function updateLayers(mapRef, layer, sublayer, action) {
 
         case "color": {
             const color = {
-                'line':    'line-color',
-                'circle':  'circle-color',
-                'symbol':  'text-color',
-                'fill':    'fill-color',
+                'line': 'line-color',
+                'circle': 'circle-color',
+                'symbol': 'text-color',
+                'fill': 'fill-color',
             }
 
             const prop = color[type];
@@ -196,9 +197,9 @@ export function updatePropertyLayers(mapRef, layer, sublayer, action) {
         case "distance-circles": {
             break;
         }
-        
+
         case "center-point": {
-            break; 
+            break;
         }
 
         default:
@@ -207,43 +208,38 @@ export function updatePropertyLayers(mapRef, layer, sublayer, action) {
 
     }
 
-    [sublayer?.id ,...layerOrder].forEach(layer => {
+    [sublayer?.id, ...layerOrder].forEach(layer => {
         if (layer && mapRef.current.getLayer(layer)) mapRef.current.moveLayer(layer);
     })
 }
 
 export async function fetchWithProgress(url, onProgress) {
-    return new Promise((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        xhr.open("GET", url, true);
-        xhr.responseType = "json";
-        let lastPercent = 0;
-        let totalBytes = 0
+    const response = await fetch(url);
 
-            // Get headers once they are loaded
-        xhr.onreadystatechange = () => {
-            if (xhr.readyState === xhr.HEADERS_RECEIVED) {
-                const contentLength = xhr.getResponseHeader("Content-Length");
-                if (contentLength) totalBytes = parseInt(contentLength, 10);
-                console.log(`Total file size: ${(totalBytes / (1024 * 1024)).toFixed(2)} MB`);
-            }
-        };
+    const total = parseInt(response.headers.get("Content-Length") || "0", 10);
+    const reader = response.body.getReader();
+    let received = 0;
+    const chunks = [];
 
-        xhr.onprogress = (event) => {
-            if (!totalBytes) return; // wait until headers received
-            if (onProgress) {
-                const percent = Math.max((event.loaded / totalBytes) * 100, lastPercent);
-                lastPercent = percent;
-                console.log("loaded: ", event.loaded, "total: ", totalBytes)
-                onProgress(percent);
-            }
-        };
+    while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value);
+        received += value.length;
+        if (onProgress && total) {
+            onProgress(Math.round((received / total) * 100));
+        }
+    }
 
-        xhr.onload = () => {
-            if (onProgress) onProgress(100);
-            resolve(xhr.response);
-        };
-        xhr.onerror = reject;
-        xhr.send();
-    });
+    // Concatenate chunks
+    const compressedData = new Uint8Array(received);
+    let offset = 0;
+    for (const chunk of chunks) {
+        compressedData.set(chunk, offset);
+        offset += chunk.length;
+    }
+
+    // Decompress gzip
+    const decompressedText = pako.inflate(compressedData, { to: "string" });
+    return JSON.parse(decompressedText);
 }

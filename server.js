@@ -6,7 +6,7 @@ import * as path from "path";
 import logger from "morgan";
 import cors from "cors";
 import { checkApiKey } from "./config/checkKey.js";
-import { getMapFiles, shutdownRedis } from "./redis/redis.js";
+import { getMapFile, shutdownRedis } from "./redis/redis.js";
 import updateMap from "./map/update.js";
 
 // CONFIG
@@ -17,7 +17,7 @@ app.use(express.json());
 const __dirname = path.resolve();
 
 // ROUTES
-app.get("/map", getMapFiles);
+app.get("/map", getMapFile);
 app.put("/buildNote", checkApiKey, updateMap);
 
 // CATCH ALL ROUTE => `index.html`

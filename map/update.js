@@ -15,7 +15,10 @@ import { awsCopy, awsGet, awsPut } from '../amazon/amazon.js';
 import { updateRedisCache } from '../redis/redis.js';
 import { diffLayers, diffFeatureProperties, normalizeName, finalizeLayers, processParcelLayers, mergeParcelProperties, localGet, BASE_FILE_NAMES, BACKUP_FILE_NAMES } from './utility.js';
 import { FeatureCollection, BaseCollectionFeature, MasterCollectionFeature, MasterIndex, MasterIndexFeature, History, HistoryEntry } from "./map.js";
-"Failed to load files"
+import zlib from "node:zlib";
+import { promisify } from "node:util";
+const gzip = promisify(zlib.gzip);
+
 export default async function updateMap(req, res) {
 
     const updates = req.body;         // rows to udpate (overwrites each time!!)
@@ -33,8 +36,6 @@ export default async function updateMap(req, res) {
     }
 
     const [CURR_BASE_SOURCE, CURR_MASTER_SOURCE, CURR_MASTER_INDEX, CURRENT_HISTORY] = data;
-
-    console.log("line 37 update map", CURRENT_HISTORY, `current history is an array?.. ${Array.isArray(CURRENT_HISTORY)}`, source);
 
     // 0.2 WRITE BACKUPS
     await backupCurrFiles(data);
@@ -195,9 +196,12 @@ export default async function updateMap(req, res) {
         console.log("✅ AWS_S3 BASE files written successfully.");
         
         // UPDATE REDIS / LOCAL CACHE
-        updateRedisCache(NEW_BASE_SOURCE, NEW_MASTER_SOURCE);
+        const zippedBase   = await gzip(JSON.stringify(NEW_BASE_SOURCE)) 
+        const zippedMaster = await gzip(JSON.stringify(NEW_MASTER_SOURCE));
+        await updateRedisCache("base-source.json", zippedBase);
+        await updateRedisCache("master-source.json", zippedMaster);
         console.log("196 - ✅ Redis upload successful.");
-
+        console.log("end of update /buildNote")
     } catch (err) {
         console.warn("199 - ", err)
     }

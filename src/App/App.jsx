@@ -37,18 +37,24 @@ export default function App({ user = {} }) {
 
 	useEffect(() => {
 		async function fetchSources() {
-			const { baseSource, masterSource } = await mapboxFuncs.fetchWithProgress("https://altadena-firemap-39f5e8fa99c6.herokuapp.com/map", setMapLoadProgress);
+			// const { baseSource, masterSource } = await mapboxFuncs.fetchWithProgress("https://altadena-firemap-39f5e8fa99c6.herokuapp.com/map", setMapLoadProgress);
+			const [baseSource, masterSource] = await Promise.all([
+				mapboxFuncs.fetchWithProgress("http://localhost:3001/map?filename=base-source.json", setMapLoadProgress),
+				mapboxFuncs.fetchWithProgress("http://localhost:3001/map?filename=master-source.json", setMapLoadProgress),
+			])
+
 			if (!baseSource || !masterSource) {
 				const msg = { msg: "" }
 				if(!baseSource)   msg.msg += "Error loading base map source."
 				if(!masterSource) msg.msg += "Error loading master map source."
 				msg.msg += "Please contact admin."
 				setSourceError(msg)
-			}
-			setSourceError({ msg: "" })
+			} else setSourceError({ msg: "" })
+
+			
 			setBaseSource(baseSource);
 			setMasterSource(masterSource);
-			setBuildLayerNames(masterSource.buildLayers.map(layer => layer.name))
+			if (masterSource?.buildLayers) setBuildLayerNames(masterSource.buildLayers.map((layer) => layer.name));
 		}
 		
 		fetchSources();

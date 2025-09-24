@@ -44,65 +44,34 @@ export async function getRedisClient() {
     return redisConnecting;
 }
 
-export async function getMapFiles(req, res) {
-    const fetchFile = async (fileName) => {
-        const client = await getRedisClient().catch(() => null);
-        if (client) {
-            try {
-                const cached = await client.getBuffer(fileName);
-                if (cached) {
-                    console.log("loading from redis cache")
-                    const decompressed = await gunzip(cached);   // cached is already a Buffer
-                    return JSON.parse(decompressed.toString("utf-8"));
-                }
-            } catch (err) {
-                console.log(`Cache miss/decompress error for ${fileName}:`, err);
-            }
-        }
-
-        // Try AWS next
-        const awsFile = await awsGet(fileName).catch(err => {
-            console.log(`AWS fetch failed for ${fileName}:`, err);
-            return null;
-        });
-        if (awsFile) {
-            updateRedisCache(fileName, awsFile).catch(err => { console.warn("Redis cache update failed:", err) });
-            return awsFile;
-        }
-
-        // Fallback to local
-        const localFile = await localGet(fileName).catch(err => {
-            console.log(`Local fetch failed for ${fileName}:`, err);
-            return null;
-        });
-        updateRedisCache(fileName, localFile).catch(err => { console.warn("Redis cache update failed:", err) });
-        return localFile;
-    };
-
+export async function getMapFile(req, res) {
     try {
-        // Fetch both files in parallel
-        const [baseSource, masterSource] = await Promise.all([
-            fetchFile("base-source.json"),
-            fetchFile("master-source.json")
-        ]);
+        const { filename } = req.query;
+        const gzippedBuffer = await fetchCompressedFile(filename);
+    
+        if (!gzippedBuffer) {
+            return res.status(404).json({ error: "File not found" });
+        }
 
-        const payload = JSON.stringify({ baseSource: baseSource || null, masterSource: masterSource || null });
-        res.setHeader("Content-Length", Buffer.byteLength(payload));
-        res.setHeader("Content-Type", "application/json");
-        res.send(payload);
+        console.log(`${filename} size: ${(gzippedBuffer.length / 1024 / 1024).toFixed(2)} MB`);
+        res.setHeader("Cache-Control", "no-store");
+        res.setHeader("Content-Type", "application/octet-stream");
+        res.setHeader("Content-Length", gzippedBuffer.length);
+        res.end(gzippedBuffer);
     } catch (err) {
-        console.error("Failed to serve /map:", err);
-        res.status(500).json({ baseSource: null, masterSource: null });
+        console.warn("Error fetching cache from redis: ", err);
+        res.status(500).json({ error: "Server error fetching file" });
     }
 }
 
-export async function updateRedisCache(filename, file) {
+
+
+export async function updateRedisCache(filename, compressedFile) {
     const client = await getRedisClient();
-    if (!client || !file) return;
+    if (!client || !compressedFile) return;
 
     try {
-        const compressed = await gzip(JSON.stringify(file)); // returns Buffer
-        await client.set(filename, compressed);              // store raw Buffer directly
+        await client.set(filename, compressedFile.toString("base64"));
         console.log(`Redis cache updated successfully for ${filename}`);
     } catch (err) {
         console.warn("Failed to update Redis cache:", err);
@@ -115,4 +84,33 @@ export async function shutdownRedis() {
         redisClient = null;
         console.log("Redis disconnected");
     }
+}
+
+async function fetchCompressedFile(fileName) {
+    const client = await getRedisClient().catch(() => null);
+    
+    if (client) {
+        const cached = await client.get(fileName); // string
+        if (cached) {
+            const base64 = await client.get(fileName);
+            const buffer = Buffer.from(base64, "base64");
+            return buffer;
+        }
+    }
+
+    // get AWS S3 NOT DECOMP
+    const awsFile = await awsGet(fileName, false).catch(() => null);
+    if (awsFile) {
+        updateRedisCache(fileName, awsFile).catch(err => console.warn("Redis update failed:", err));
+        return awsFile;
+    }
+
+    const localFile = await localGet(fileName).catch(() => null);
+    if (localFile) {
+        const compressed = await gzip(JSON.stringify(localFile));
+        updateRedisCache(fileName, compressed).catch(err => console.warn("Redis update failed:", err));
+        return compressed;
+    }
+
+    return null;
 }
