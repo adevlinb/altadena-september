@@ -2,8 +2,8 @@
 // This seed file is only meant to be run ONCE to initiate the starting point for map related items. 
 // It only needs to be run IF something happens to all of the other files!!!
 /***************************************************/
-import dotenv from 'dotenv'; // => development only
-dotenv.config({ path: path.resolve(process.cwd(), '../.env') });
+// import dotenv from 'dotenv'; // => development only
+// dotenv.config({ path: path.resolve(process.cwd(), '../.env') });
 
 // IMPORTS
 import fs from 'fs/promises';
@@ -13,8 +13,8 @@ import { FeatureCollection, BaseCollectionFeature, MasterCollectionFeature, Mast
 import { diffLayers, diffFeatureProperties, finalizeLayers, processParcelLayers, localWrite, BASE_FILE_NAMES, BACKUP_FILE_NAMES } from '../map/utility.js';
 import { awsPut } from '../amazon/amazon.js';
 import { fileURLToPath } from 'url';
-// const __filename = fileURLToPath(import.meta.url);
-// const __dirname = path.dirname(__filename);
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // FOLDER / FILE PATHS
 const originalDataDir  = path.resolve(__dirname, './original_geojson_data');

@@ -38,8 +38,8 @@ export default function App({ user = {} }) {
 	useEffect(() => {
 		async function fetchSources() {
 			const [baseSource, masterSource] = await Promise.all([
-				mapboxFuncs.fetchWithProgress(`${import.meta.env.APP_URL}/map?filename=base-source.json`, setMapLoadProgress),
-				mapboxFuncs.fetchWithProgress(`${import.meta.env.APP_URL}/map?filename=master-source.json`, setMapLoadProgress),
+				mapboxFuncs.fetchWithProgress(`${import.meta.env.VITE_APP_URL}/map?filename=base-source.json`, setMapLoadProgress),
+				mapboxFuncs.fetchWithProgress(`${import.meta.env.VITE_APP_URL}/map?filename=master-source.json`, setMapLoadProgress),
 			])
 
 			if (!baseSource || !masterSource) {
