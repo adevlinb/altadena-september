@@ -19,7 +19,7 @@ export async function getRedisClient() {
             const client = createClient({
                 url: process.env.REDISCLOUD_URL,
                 socket: {
-                    tls: (redis_url.match(/rediss:/) != null),
+                    tls: (process.env.REDISCLOUD_URL.match(/rediss:/) != null),
                     rejectUnauthorized: false,
                 }
             });
