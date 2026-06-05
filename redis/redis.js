@@ -89,13 +89,13 @@ export async function shutdownRedis() {
 async function fetchCompressedFile(fileName) {
     const client = await getRedisClient().catch(() => null);
     
-    if (client) {
-        const cached = await client.get(fileName);
-        if (cached) {
-            const buffer = Buffer.from(cached, "base64");
-            return buffer;
-        }
-    }
+    // if (client) {
+    //     const cached = await client.get(fileName);
+    //     if (cached) {
+    //         const buffer = Buffer.from(cached, "base64");
+    //         return buffer;
+    //     }
+    // }
 
     // get AWS S3
     const awsFile = await awsGet(fileName, false).catch(() => null);
