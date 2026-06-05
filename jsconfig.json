@@ -5,7 +5,8 @@
     "jsx": "react-jsx",                // enable React JSX IntelliSense
     "moduleResolution": "bundler",     // good for Vite/ESM projects
     "baseUrl": ".",                    // allow path aliases if you want to add them later
-    "paths": {}                        // placeholder, safe to leave empty until you need aliases
+    "paths": {},                       // placeholder, safe to leave empty until you need aliases
+	"ignoreDeprecations": "6.0",
   },
   "exclude": [
     "node_modules",

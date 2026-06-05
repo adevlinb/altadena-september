@@ -90,18 +90,19 @@ async function fetchCompressedFile(fileName) {
     const client = await getRedisClient().catch(() => null);
     
     if (client) {
-        const cached = await client.get(fileName); // string
+        const cached = await client.get(fileName);
         if (cached) {
-            const base64 = await client.get(fileName);
-            const buffer = Buffer.from(base64, "base64");
+            const buffer = Buffer.from(cached, "base64");
             return buffer;
         }
     }
 
-    // get AWS S3 NOT DECOMP
+    // get AWS S3
     const awsFile = await awsGet(fileName, false).catch(() => null);
     if (awsFile) {
-        updateRedisCache(fileName, awsFile).catch(err => console.warn("Redis update failed:", err));
+        const preview = Buffer.isBuffer(awsFile) 
+            ? awsFile.slice(0, 2).toString("hex") 
+            : JSON.stringify(awsFile).slice(0, 100);
         return awsFile;
     }
 

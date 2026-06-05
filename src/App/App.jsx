@@ -37,23 +37,27 @@ export default function App({ user = {} }) {
 
 	useEffect(() => {
 		async function fetchSources() {
-			const [baseSource, masterSource] = await Promise.all([
-				mapboxFuncs.fetchWithProgress(`${import.meta.env.VITE_APP_URL}/map?filename=base-source.json`, setMapLoadProgress),
-				mapboxFuncs.fetchWithProgress(`${import.meta.env.VITE_APP_URL}/map?filename=master-source.json`, setMapLoadProgress),
-			])
+			try {
+				const [baseSource, masterSource] = await Promise.all([
+					mapboxFuncs.fetchWithProgress(`${import.meta.env.VITE_APP_URL}/map?filename=base-source.json`, setMapLoadProgress),
+					mapboxFuncs.fetchWithProgress(`${import.meta.env.VITE_APP_URL}/map?filename=master-source.json`, setMapLoadProgress),
+				])
+	
+				if (!baseSource || !masterSource) {
+					const msg = { msg: "" }
+					if(!baseSource)   msg.msg += "Error loading base map source."
+					if(!masterSource) msg.msg += "Error loading master map source."
+					msg.msg += "Please contact admin."
+					setSourceError(msg)
+				} else setSourceError({ msg: "" })
+				
+				setBaseSource(baseSource);
+				setMasterSource(masterSource);
+				if (masterSource?.buildLayers) setBuildLayerNames(masterSource.buildLayers.map((layer) => layer.name));
 
-			if (!baseSource || !masterSource) {
-				const msg = { msg: "" }
-				if(!baseSource)   msg.msg += "Error loading base map source."
-				if(!masterSource) msg.msg += "Error loading master map source."
-				msg.msg += "Please contact admin."
-				setSourceError(msg)
-			} else setSourceError({ msg: "" })
-
-			
-			setBaseSource(baseSource);
-			setMasterSource(masterSource);
-			if (masterSource?.buildLayers) setBuildLayerNames(masterSource.buildLayers.map((layer) => layer.name));
+			} catch (error) {
+				console.error(error)
+			}
 		}
 		
 		fetchSources();
