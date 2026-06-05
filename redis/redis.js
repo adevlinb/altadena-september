@@ -26,11 +26,14 @@ export async function getMapFile(req, res) {
 }
 
 async function fetchCompressedFile(fileName) {
-    const awsFile = await awsGet(fileName, false).catch(() => null);
-    if (awsFile) {
-        const data = Buffer.isBuffer(awsFile) ? awsFile.toString() : JSON.stringify(awsFile);
-        return await gzip(data);
-    }
+	const awsFile = await awsGet(fileName, false).catch(() => null);
+	if (awsFile) {
+    // awsGet returns an already-gzipped buffer as a numeric-keyed object
+		const buffer = Buffer.isBuffer(awsFile) 
+			? awsFile 
+			: Buffer.from(Object.values(awsFile));
+		return buffer; // already gzipped, send as-is
+	}
 
     const localFile = await localGet(fileName).catch(() => null);
     if (localFile) {

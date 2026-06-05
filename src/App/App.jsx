@@ -157,15 +157,17 @@ export default function App({ user = {} }) {
 						{ mapLayers.map(l => (<Layer key={l.key} layer={l} updateMapLayers={updateMapLayers} property={false} buildNote={true} buildLayerNames={buildLayerNames} />)) }
 					</div>
 				</div>
-				<div className="rolodex-container">
-					<div className="main-label">
-						<h3>Rolodex: ({masterSource?.rolodex.length})</h3>
-						<ToggleSlider {...TOGGLE_PROPS} onToggle={showRolodex => setShowRolodex(showRolodex)} />
+				{masterSource?.rolodex && 
+					<div className="rolodex-container">
+						<div className="main-label">
+							<h3>Rolodex: ({masterSource?.rolodex?.length})</h3>
+							<ToggleSlider {...TOGGLE_PROPS} onToggle={showRolodex => setShowRolodex(showRolodex)} />
+						</div>
+						<div className="rolodex-items-container" style={{ display: showRolodex && masterSource?.rolodex?.length > 0 ? "block" : "none" }}>
+							{ masterSource?.rolodex?.map((entry, idx) => (<RolodexEntry key={entry.name} entry={entry} idx={idx}/>)) }
+						</div>
 					</div>
-					<div className="rolodex-items-container" style={{ display: showRolodex && masterSource?.rolodex.length > 0 ? "block" : "none" }}>
-						{ masterSource?.rolodex.map((entry, idx) => (<RolodexEntry key={entry.name} entry={entry} idx={idx}/>)) }
-					</div>
-				</div>
+				}
 				<div className="property-container">
 					<div className="main-label">
 						<h3>Property Detail:</h3>

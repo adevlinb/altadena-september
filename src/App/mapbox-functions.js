@@ -240,6 +240,10 @@ export async function fetchWithProgress(url, onProgress) {
     }
 
     // Decompress gzip
-    const decompressedText = pako.inflate(compressedData, { to: "string" });
-    return JSON.parse(decompressedText);
+	const decompressedText = pako.inflate(compressedData, { to: "string" });
+	const parsed = JSON.parse(decompressedText);
+	console.log("parsed keys:", Object.keys(parsed));
+	console.log("has layers:", !!parsed.layers);
+	console.log("has buildLayers:", !!parsed.buildLayers);
+	return parsed;
 }
